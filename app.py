@@ -167,7 +167,7 @@ def optimize_content_for_analysis(content):
     # Build final content: ALWAYS include financial statements + best regular content
     selected_paragraphs = []
     total_length = 0
-    max_length = 10000  # Much more aggressive for Heroku constraints
+    max_length = 6000  # Very aggressive for reliable Heroku performance
     
     # 1. FIRST: Add all financial statement paragraphs (high priority)
     for i, para in financial_statement_paragraphs:
@@ -346,7 +346,7 @@ def analyze_financial_report(report_text, analysis_id):
             'temperature': 0.3,  # Lower for faster, more focused responses
             'top_p': 0.8,       # Reduced for faster generation
             'top_k': 16,        # Reduced for faster generation
-            'max_output_tokens': 4000,  # Increased to complete analysis since we're efficiently targeting financial data
+            'max_output_tokens': 3000,  # Reduced further to stay well within Heroku timeout
         }
         
         start_time = time.time()
@@ -357,9 +357,9 @@ def analyze_financial_report(report_text, analysis_id):
         def timeout_handler(signum, frame):
             raise TimeoutError("API call timed out")
         
-        # Set a 20-second timeout to stay well within Heroku's 30s limit
+        # Set a 12-second timeout for single fast attempt
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(20)
+        signal.alarm(12)
         
         try:
             response = gemini_model.generate_content(
@@ -377,35 +377,12 @@ def analyze_financial_report(report_text, analysis_id):
                 print(f"[{analysis_id}] Analysis completed successfully")
                 return response.text
             else:
-                print(f"[{analysis_id}] Empty response from main prompt, trying simpler approach...")
-                
-                # Try simpler prompt as fallback
-                simple_prompt = SIMPLE_ANALYSIS_PROMPT.format(report_text=report_text)
-                print(f"[{analysis_id}] Trying simple prompt (length: {len(simple_prompt)} chars)")
-                
-                try:
-                    fallback_response = gemini_model.generate_content(
-                        simple_prompt,
-                        generation_config=generation_config
-                    )
-                    
-                    if fallback_response.text and fallback_response.text.strip():
-                        print(f"[{analysis_id}] Simple prompt succeeded")
-                        return fallback_response.text
-                    else:
-                        print(f"[{analysis_id}] Both prompts failed - checking response details")
-                        if hasattr(response, 'candidates'):
-                            print(f"[{analysis_id}] Main response candidates: {len(response.candidates) if response.candidates else 'None'}")
-                        if hasattr(fallback_response, 'candidates'):
-                            print(f"[{analysis_id}] Fallback response candidates: {len(fallback_response.candidates) if fallback_response.candidates else 'None'}")
-                        return "Analysis completed but both main and fallback prompts generated no content. The AI model may be experiencing issues or the document format is not suitable. Please try a different document."
-                except Exception as fallback_error:
-                    print(f"[{analysis_id}] Fallback prompt failed: {fallback_error}")
-                    return "Analysis completed but main prompt failed and fallback prompt encountered an error. Please try again later."
+                print(f"[{analysis_id}] Empty response from main prompt")
+                return "Analysis generated no content. The document may be too complex or the AI model is experiencing issues. Please try with a smaller document or try again later."
                 
         except TimeoutError:
             signal.alarm(0)  # Cancel alarm
-            print(f"[{analysis_id}] API call timed out after 20 seconds")
+            print(f"[{analysis_id}] API call timed out after 12 seconds")
             return "Analysis timed out due to Heroku's 30-second limit. The document may be too complex. Please try with a smaller file or try again later."
             
         except Exception as api_error:
