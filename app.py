@@ -62,92 +62,129 @@ def clean_old_files():
 
 def optimize_content_for_analysis(content):
     """
-    Optimize content for financial analysis while preserving important numerical data
-    Prioritizes sections with financial numbers and maintains document structure
+    Optimize content for financial analysis with special focus on financial statements
+    Specifically targets Balance Sheet, Income Statement, and Cash Flow Statement sections
     """
-    if len(content) <= 15000:  # More generous threshold
+    if len(content) <= 15000:
         return content
     
     import re
     
-    # Enhanced financial keywords
-    financial_keywords = [
-        'revenue', 'profit', 'income', 'assets', 'liabilities', 'equity',
-        'cash flow', 'margin', 'ratio', 'debt', 'earnings', 'financial',
-        'management discussion', 'md&a', 'risk', 'outlook', 'performance',
-        'quarter', 'annual', 'fiscal', 'operating', 'net income', 'gross profit',
-        'ebitda', 'eps', 'diluted', 'basic', 'shares', 'dividend', 'acquisition',
-        'consolidated', 'segment', 'geographic', 'business', 'tax', 'provision'
-    ]
-    
-    # Split into paragraphs and score by financial relevance
+    # Split into paragraphs
     paragraphs = content.split('\n\n')
-    scored_paragraphs = []
+    
+    # CRITICAL: First, find and preserve actual financial statement sections
+    financial_statement_paragraphs = []
+    regular_paragraphs = []
+    
+    # Critical financial statement identifiers - these MUST be included
+    critical_statements = [
+        'balance sheet', 'consolidated balance sheet', 'consolidated balance sheets',
+        'income statement', 'consolidated income statement', 'consolidated statements of income',
+        'cash flow statement', 'consolidated statements of cash flows', 'statements of cash flows',
+        'consolidated statements of operations', 'statements of operations',
+        'consolidated statements of comprehensive income', 'statements of comprehensive income',
+        'consolidated statements of stockholders', 'stockholders equity', "shareholders' equity"
+    ]
     
     for i, para in enumerate(paragraphs):
         if len(para.strip()) < 20:
             continue
             
+        para_lower = para.lower()
+        
+        # Check if this paragraph contains critical financial statement headers/data
+        is_financial_statement = False
+        for statement in critical_statements:
+            if statement in para_lower:
+                is_financial_statement = True
+                break
+        
+        # Also check for sections with heavy numerical data (likely financial statements)
+        financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?|\d+\.\d+|\d+,\d+', para)
+        if len(financial_numbers) > 5:  # Very number-dense sections
+            is_financial_statement = True
+        
+        if is_financial_statement:
+            financial_statement_paragraphs.append((i, para))
+        else:
+            regular_paragraphs.append((i, para))
+    
+    # Score regular paragraphs
+    scored_regular_paragraphs = []
+    
+    financial_keywords = [
+        'revenue', 'profit', 'income', 'assets', 'liabilities', 'equity',
+        'cash flow', 'margin', 'ratio', 'debt', 'earnings', 'financial',
+        'management discussion', 'md&a', 'risk', 'outlook', 'performance',
+        'quarter', 'annual', 'fiscal', 'operating', 'net income', 'gross profit',
+        'ebitda', 'eps', 'diluted', 'basic', 'shares', 'dividend', 'acquisition'
+    ]
+    
+    for i, para in regular_paragraphs:
         score = 0
         para_lower = para.lower()
         
-        # HEAVILY prioritize sections with lots of numbers (financial data)
-        # Enhanced regex for better financial number detection
+        # Score based on financial numbers
         financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?|\d+\.\d+|\d+,\d+', para)
-        score += len(financial_numbers) * 25  # Much higher weight for numbers
+        score += len(financial_numbers) * 20
         
-        # Extra boost for dense numerical content
-        if len(financial_numbers) > 3:
-            score += 50  # High boost for number-rich sections
-        
-        # Score based on financial keywords
+        # Score based on keywords
         for keyword in financial_keywords:
-            score += para_lower.count(keyword) * 10
+            score += para_lower.count(keyword) * 8
             
-        # Extra boost for financial statement sections and headers
-        statement_indicators = ['consolidated', 'statement', 'balance sheet', 'income statement', 
-                              'cash flows', 'stockholders equity', 'comprehensive income',
-                              'three months ended', 'six months ended', 'year ended', 'fiscal']
-        if any(term in para_lower for term in statement_indicators):
+        # Boost early sections (executive summary, etc.)
+        if i < len(paragraphs) * 0.2:  # First 20% of document
+            score += 25
+            
+        # Boost MD&A and key sections
+        if any(term in para_lower for term in ['management discussion', 'md&a', 'executive summary', 'business overview']):
             score += 40
-            
-        # Boost for important sections that appear early (preserve structure)
-        if i < len(paragraphs) * 0.3:  # First 30% of document
-            score += 15
-            
-        # Boost for sections with financial ratios and metrics
-        ratio_terms = ['margin', 'ratio', 'return on', 'earnings per share', 'book value', 'debt to']
-        if any(term in para_lower for term in ratio_terms):
-            score += 30
         
-        scored_paragraphs.append((score, i, para))  # Include original position
+        scored_regular_paragraphs.append((score, i, para))
     
-    # Sort by score but maintain some original order for high-scoring consecutive sections
-    scored_paragraphs.sort(reverse=True, key=lambda x: x[0])
+    # Sort regular paragraphs by score
+    scored_regular_paragraphs.sort(reverse=True, key=lambda x: x[0])
     
-    # Build optimized content with much higher limits
-    optimized_content = ""
-    total_length = 0
-    max_length = 15000  # Optimized for Heroku timeout while preserving key data
-    
+    # Build final content: ALWAYS include financial statements + best regular content
     selected_paragraphs = []
+    total_length = 0
+    max_length = 15000
     
-    for score, original_pos, para in scored_paragraphs:
+    # 1. FIRST: Add all financial statement paragraphs (high priority)
+    for i, para in financial_statement_paragraphs:
         if total_length + len(para) <= max_length:
-            selected_paragraphs.append((original_pos, para))
+            selected_paragraphs.append((i, para))
             total_length += len(para)
-        elif score > 80 and total_length < max_length - 500:  # High-value content
+        else:
+            # If financial statement is too long, truncate but still include
             remaining = max_length - total_length - 100
-            truncated = para[:remaining] + "... [content truncated]"
-            selected_paragraphs.append((original_pos, truncated))
+            if remaining > 200:  # Only truncate if we have reasonable space
+                truncated = para[:remaining] + "... [financial statement continues]"
+                selected_paragraphs.append((i, truncated))
+                total_length += len(truncated)
             break
     
-    # Sort selected paragraphs by original position to maintain document flow
+    # 2. SECOND: Fill remaining space with highest-scored regular content
+    for score, i, para in scored_regular_paragraphs:
+        if total_length + len(para) <= max_length:
+            selected_paragraphs.append((i, para))
+            total_length += len(para)
+        elif score > 60 and total_length < max_length - 300:
+            remaining = max_length - total_length - 100
+            truncated = para[:remaining] + "... [content truncated]"
+            selected_paragraphs.append((i, truncated))
+            break
+    
+    # Sort by original position to maintain document flow
     selected_paragraphs.sort(key=lambda x: x[0])
     
     # Build final content
+    optimized_content = ""
     for _, para in selected_paragraphs:
         optimized_content += para + "\n\n"
+    
+    print(f"Content optimization: Found {len(financial_statement_paragraphs)} financial statement sections, {len(selected_paragraphs)} total sections selected")
     
     return optimized_content.strip()
 
