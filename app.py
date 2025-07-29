@@ -346,7 +346,7 @@ def analyze_financial_report(report_text, analysis_id):
             'temperature': 0.3,  # Lower for faster, more focused responses
             'top_p': 0.8,       # Reduced for faster generation
             'top_k': 16,        # Reduced for faster generation
-            'max_output_tokens': 3000,  # Reduced further for faster response
+            'max_output_tokens': 4000,  # Increased to complete analysis since we're efficiently targeting financial data
         }
         
         start_time = time.time()
