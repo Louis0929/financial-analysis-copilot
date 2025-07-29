@@ -46,18 +46,54 @@ def read_docx_file(filepath):
         raise ImportError("python-docx is required for Word files. Install with: pip install python-docx")
 
 def read_excel_file(filepath):
-    """Read content from an Excel file"""
+    """Read content from an Excel file with improved multi-sheet handling"""
     try:
         # Read all sheets and combine content
         excel_file = pd.ExcelFile(filepath)
         content = ""
         
-        for sheet_name in excel_file.sheet_names:
-            df = pd.read_excel(filepath, sheet_name=sheet_name)
-            content += f"\n--- SHEET: {sheet_name} ---\n"
-            content += df.to_string(index=False) + "\n"
+        print(f"📊 Excel file contains {len(excel_file.sheet_names)} sheets: {excel_file.sheet_names}")
         
+        # Prioritize financial statement sheets
+        priority_sheets = ['income statement', 'balance sheet', 'cash flow', 'statement', 'summary', 'financial']
+        processed_sheets = []
+        
+        # First, process priority sheets
+        for sheet_name in excel_file.sheet_names:
+            sheet_lower = sheet_name.lower()
+            if any(priority in sheet_lower for priority in priority_sheets):
+                try:
+                    df = pd.read_excel(filepath, sheet_name=sheet_name)
+                    if not df.empty:
+                        content += f"
+=== FINANCIAL SHEET: {sheet_name} ===
+"
+                        content += df.to_string(index=False, max_rows=200) + "
+"
+                        processed_sheets.append(sheet_name)
+                        print(f"✅ Processed priority sheet: {sheet_name} ({len(df)} rows)")
+                except Exception as e:
+                    print(f"⚠️ Error reading sheet '{sheet_name}': {e}")
+        
+        # Then, process remaining sheets
+        for sheet_name in excel_file.sheet_names:
+            if sheet_name not in processed_sheets:
+                try:
+                    df = pd.read_excel(filepath, sheet_name=sheet_name)
+                    if not df.empty:
+                        content += f"
+--- SHEET: {sheet_name} ---
+"
+                        content += df.to_string(index=False, max_rows=100) + "
+"
+                        processed_sheets.append(sheet_name)
+                        print(f"✅ Processed sheet: {sheet_name} ({len(df)} rows)")
+                except Exception as e:
+                    print(f"⚠️ Error reading sheet '{sheet_name}': {e}")
+        
+        print(f"📋 Total sheets processed: {len(processed_sheets)}/{len(excel_file.sheet_names)}")
         return content
+        
     except ImportError:
         raise ImportError("pandas and openpyxl are required for Excel files. Install with: pip install pandas openpyxl")
 
