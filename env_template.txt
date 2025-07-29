@@ -1,0 +1,11 @@
+# Environment Variables Template
+# Copy this content to a new file named ".env" in the project root
+
+# Google Gemini API Configuration
+# Get your API key from: https://makersuite.google.com/app/apikey
+GOOGLE_API_KEY=your_api_key_here
+
+# Flask Configuration
+FLASK_DEBUG=True
+SECRET_KEY=your-secret-key-change-this-in-production
+PORT=5000 
