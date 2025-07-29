@@ -65,7 +65,7 @@ def optimize_content_for_analysis(content):
     Optimize content for financial analysis with special focus on financial statements
     Specifically targets Balance Sheet, Income Statement, and Cash Flow Statement sections
     """
-    if len(content) <= 10000:
+    if len(content) <= 25000:
         return content
     
     import re
@@ -173,7 +173,7 @@ def optimize_content_for_analysis(content):
     # Build final content: ALWAYS include financial statements + best regular content
     selected_paragraphs = []
     total_length = 0
-    max_length = 6000  # Very aggressive for reliable Heroku performance
+    max_length = 25000  # Increased for comprehensive analysis on Cloud Run
     
     # 1. FIRST: Add all financial statement paragraphs (high priority)
     for i, para in financial_statement_paragraphs:
@@ -346,13 +346,13 @@ def analyze_financial_report(report_text, analysis_id):
         
         print(f"[{analysis_id}] Starting analysis... (prompt length: {len(formatted_prompt)} chars)")
         
-        # Configure generation settings optimized for Heroku 30s timeout
+        # Configure generation settings optimized for Cloud Run (5 minute timeout)
         
         generation_config = {
-            'temperature': 0.3,  # Lower for faster, more focused responses
-            'top_p': 0.8,       # Reduced for faster generation
-            'top_k': 16,        # Reduced for faster generation
-            'max_output_tokens': 3000,  # Reduced further to stay well within Heroku timeout
+            'temperature': 0.3,  # Lower for focused, professional responses
+            'top_p': 0.9,       # Increased for better quality on Cloud Run
+            'top_k': 20,        # Increased for better generation quality
+            'max_output_tokens': 8000,  # Increased for comprehensive analysis on Cloud Run
         }
         
         start_time = time.time()
@@ -363,9 +363,9 @@ def analyze_financial_report(report_text, analysis_id):
         def timeout_handler(signum, frame):
             raise TimeoutError("API call timed out")
         
-        # Set a 10-second timeout for ultra-fast response
+        # Set a 120-second timeout for comprehensive Cloud Run analysis
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(10)
+        signal.alarm(120)
         
         try:
             response = gemini_model.generate_content(
@@ -388,8 +388,8 @@ def analyze_financial_report(report_text, analysis_id):
                 
         except TimeoutError:
             signal.alarm(0)  # Cancel alarm
-            print(f"[{analysis_id}] API call timed out after 10 seconds")
-            return "Analysis timed out due to Heroku's 30-second limit. The document may be too complex. Please try with a smaller file or try again later."
+            print(f"[{analysis_id}] API call timed out after 120 seconds")
+            return "Analysis timed out after 2 minutes. The document may be extremely complex. Please try with a smaller file or try again later."
             
         except Exception as api_error:
             signal.alarm(0)  # Cancel alarm
@@ -451,7 +451,7 @@ if __name__ == '__main__':
     print("⚡ Optimized for speed with intelligent content processing")
     
     # Use environment variables for production deployment
-    debug_mode = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
-    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    port = int(os.environ.get('PORT', 8080))  # Cloud Run uses PORT=8080
     
     app.run(debug=debug_mode, host='0.0.0.0', port=port) 
