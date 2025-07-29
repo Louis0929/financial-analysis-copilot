@@ -257,7 +257,7 @@ def analyze_financial_report(report_text, analysis_id):
             'temperature': 0.4,  # Even lower for faster, more focused responses
             'top_p': 0.9,       # Reduced for faster generation
             'top_k': 20,        # Reduced for faster generation
-            'max_output_tokens': 1500,  # Reduced for faster response
+            'max_output_tokens': 2400,  # Reduced for faster response
         }
         
         start_time = time.time()
@@ -288,8 +288,31 @@ def analyze_financial_report(report_text, analysis_id):
                 print(f"[{analysis_id}] Analysis completed successfully")
                 return response.text
             else:
-                print(f"[{analysis_id}] Empty response from API")
-                return "Analysis completed but no content was generated. Please try again with a different document."
+                print(f"[{analysis_id}] Empty response from main prompt, trying simpler approach...")
+                
+                # Try simpler prompt as fallback
+                simple_prompt = SIMPLE_ANALYSIS_PROMPT.format(report_text=report_text)
+                print(f"[{analysis_id}] Trying simple prompt (length: {len(simple_prompt)} chars)")
+                
+                try:
+                    fallback_response = gemini_model.generate_content(
+                        simple_prompt,
+                        generation_config=generation_config
+                    )
+                    
+                    if fallback_response.text and fallback_response.text.strip():
+                        print(f"[{analysis_id}] Simple prompt succeeded")
+                        return fallback_response.text
+                    else:
+                        print(f"[{analysis_id}] Both prompts failed - checking response details")
+                        if hasattr(response, 'candidates'):
+                            print(f"[{analysis_id}] Main response candidates: {len(response.candidates) if response.candidates else 'None'}")
+                        if hasattr(fallback_response, 'candidates'):
+                            print(f"[{analysis_id}] Fallback response candidates: {len(fallback_response.candidates) if fallback_response.candidates else 'None'}")
+                        return "Analysis completed but both main and fallback prompts generated no content. The AI model may be experiencing issues or the document format is not suitable. Please try a different document."
+                except Exception as fallback_error:
+                    print(f"[{analysis_id}] Fallback prompt failed: {fallback_error}")
+                    return "Analysis completed but main prompt failed and fallback prompt encountered an error. Please try again later."
                 
         except TimeoutError:
             signal.alarm(0)  # Cancel alarm
