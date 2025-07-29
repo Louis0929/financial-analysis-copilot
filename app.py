@@ -252,25 +252,25 @@ def analyze_financial_report(report_text, analysis_id):
         
         print(f"[{analysis_id}] Starting analysis... (prompt length: {len(formatted_prompt)} chars)")
         
-        # Configure generation settings for faster response and timeout compliance
+        # Configure generation settings for comprehensive analysis
         generation_config = {
-            'temperature': 0.4,  # Even lower for faster, more focused responses
-            'top_p': 0.9,       # Reduced for faster generation
-            'top_k': 20,        # Reduced for faster generation
-            'max_output_tokens': 2400,  # Reduced for faster response
+            'temperature': 0.4,  # Low for focused, professional responses
+            'top_p': 0.9,       # Balanced for quality
+            'top_k': 20,        # Focused sampling
+            'max_output_tokens': 8000,  # Increased to allow complete analysis
         }
         
         start_time = time.time()
         
-        # Generate analysis with timeout handling (keep within 25 seconds to be safe)
+        # Generate analysis with timeout handling (allow more time for comprehensive analysis)
         import signal
         
         def timeout_handler(signum, frame):
             raise TimeoutError("API call timed out")
         
-        # Set a 25-second timeout
+        # Set a 45-second timeout for complete analysis
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(25)
+        signal.alarm(45)
         
         try:
             response = gemini_model.generate_content(
@@ -316,7 +316,7 @@ def analyze_financial_report(report_text, analysis_id):
                 
         except TimeoutError:
             signal.alarm(0)  # Cancel alarm
-            print(f"[{analysis_id}] API call timed out after 25 seconds")
+            print(f"[{analysis_id}] API call timed out after 45 seconds")
             return "Analysis timed out. The document may be too complex. Please try with a smaller file or try again later."
             
         except Exception as api_error:
