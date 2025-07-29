@@ -62,64 +62,92 @@ def clean_old_files():
 
 def optimize_content_for_analysis(content):
     """
-    Optimize content length for faster API processing with aggressive reduction
-    Focus on key financial sections for Heroku timeout compliance
+    Optimize content for financial analysis while preserving important numerical data
+    Prioritizes sections with financial numbers and maintains document structure
     """
-    if len(content) <= 3000:  # Even smaller threshold
+    if len(content) <= 15000:  # More generous threshold
         return content
     
-    # Key financial keywords to prioritize (more focused list)
+    import re
+    
+    # Enhanced financial keywords
     financial_keywords = [
         'revenue', 'profit', 'income', 'assets', 'liabilities', 'equity',
         'cash flow', 'margin', 'ratio', 'debt', 'earnings', 'financial',
         'management discussion', 'md&a', 'risk', 'outlook', 'performance',
-        'quarter', 'annual', 'fiscal', 'operating', 'net income'
+        'quarter', 'annual', 'fiscal', 'operating', 'net income', 'gross profit',
+        'ebitda', 'eps', 'diluted', 'basic', 'shares', 'dividend', 'acquisition',
+        'consolidated', 'segment', 'geographic', 'business', 'tax', 'provision'
     ]
     
     # Split into paragraphs and score by financial relevance
     paragraphs = content.split('\n\n')
     scored_paragraphs = []
     
-    for para in paragraphs:
-        if len(para.strip()) < 30:  # Skip even shorter paragraphs
+    for i, para in enumerate(paragraphs):
+        if len(para.strip()) < 20:
             continue
             
         score = 0
         para_lower = para.lower()
         
-        # Score based on financial keywords (higher weight)
+        # HEAVILY prioritize sections with lots of numbers (financial data)
+        # Enhanced regex for better financial number detection
+        financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?|\d+\.\d+|\d+,\d+', para)
+        score += len(financial_numbers) * 25  # Much higher weight for numbers
+        
+        # Extra boost for dense numerical content
+        if len(financial_numbers) > 3:
+            score += 50  # High boost for number-rich sections
+        
+        # Score based on financial keywords
         for keyword in financial_keywords:
-            score += para_lower.count(keyword) * 15  # Increased weight
+            score += para_lower.count(keyword) * 10
             
-        # Boost score for paragraphs with numbers/percentages (higher weight)
-        import re
-        numbers = re.findall(r'\$[\d,\.]+|\d+%|\d+\.\d+%|\d+\.\d+[mMbBkK]?', para)
-        score += len(numbers) * 8  # Increased weight
+        # Extra boost for financial statement sections and headers
+        statement_indicators = ['consolidated', 'statement', 'balance sheet', 'income statement', 
+                              'cash flows', 'stockholders equity', 'comprehensive income',
+                              'three months ended', 'six months ended', 'year ended', 'fiscal']
+        if any(term in para_lower for term in statement_indicators):
+            score += 40
+            
+        # Boost for important sections that appear early (preserve structure)
+        if i < len(paragraphs) * 0.3:  # First 30% of document
+            score += 15
+            
+        # Boost for sections with financial ratios and metrics
+        ratio_terms = ['margin', 'ratio', 'return on', 'earnings per share', 'book value', 'debt to']
+        if any(term in para_lower for term in ratio_terms):
+            score += 30
         
-        # Extra boost for financial statement sections
-        if any(term in para_lower for term in ['consolidated', 'statement', 'balance sheet', 'income statement']):
-            score += 20
-        
-        scored_paragraphs.append((score, para))
+        scored_paragraphs.append((score, i, para))  # Include original position
     
-    # Sort by score and take top paragraphs (more selective)
+    # Sort by score but maintain some original order for high-scoring consecutive sections
     scored_paragraphs.sort(reverse=True, key=lambda x: x[0])
     
-    # Build optimized content with aggressive limits
+    # Build optimized content with much higher limits
     optimized_content = ""
     total_length = 0
-    max_length = 8000  # Increase content for better analysis quality
+    max_length = 25000  # Significantly increased limit for comprehensive analysis
     
-    for score, para in scored_paragraphs:
-        if total_length + len(para) > max_length:
-            # Try to fit a truncated version if it has high score
-            if score > 50 and total_length < max_length - 200:
-                remaining = max_length - total_length - 50
-                truncated = para[:remaining] + "..."
-                optimized_content += truncated + "\n\n"
+    selected_paragraphs = []
+    
+    for score, original_pos, para in scored_paragraphs:
+        if total_length + len(para) <= max_length:
+            selected_paragraphs.append((original_pos, para))
+            total_length += len(para)
+        elif score > 80 and total_length < max_length - 500:  # High-value content
+            remaining = max_length - total_length - 100
+            truncated = para[:remaining] + "... [content truncated]"
+            selected_paragraphs.append((original_pos, truncated))
             break
+    
+    # Sort selected paragraphs by original position to maintain document flow
+    selected_paragraphs.sort(key=lambda x: x[0])
+    
+    # Build final content
+    for _, para in selected_paragraphs:
         optimized_content += para + "\n\n"
-        total_length += len(para)
     
     return optimized_content.strip()
 
