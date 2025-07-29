@@ -78,16 +78,19 @@ def optimize_content_for_analysis(content):
     regular_paragraphs = []
     
     # Critical financial statement identifiers - these MUST be included
+    # More precise detection to avoid false positives
     critical_statements = [
-        'balance sheet', 'consolidated balance sheet', 'consolidated balance sheets',
-        'income statement', 'income statements', 'consolidated income statement', 'consolidated statements of income',
-        'cash flow statement', 'consolidated statements of cash flows', 'statements of cash flows',
+        'consolidated balance sheets', 'balance sheets',
+        'consolidated statements of income', 'consolidated income statements', 'statements of income',
+        'consolidated statements of cash flows', 'statements of cash flows', 'cash flows statement',
         'consolidated statements of operations', 'statements of operations',
         'consolidated statements of comprehensive income', 'statements of comprehensive income',
-        'consolidated statements of stockholders', 'stockholders equity', "shareholders' equity",
-        # Add more variations found in 10-K reports
+        'consolidated statements of stockholders', 'consolidated statements of shareholders',
         'statements of earnings', 'consolidated statements of earnings',
-        'item 8. financial statements', 'financial statements and supplementary data'
+        'item 8. financial statements and supplementary data',
+        # Add table headers that indicate actual financial data
+        '(in millions, except per share', '(in thousands, except per share', '(dollars in millions)',
+        'three months ended', 'year ended june 30', 'fiscal year ended'
     ]
     
     # Enhanced approach: Look for financial statement blocks, not just individual paragraphs
@@ -104,8 +107,11 @@ def optimize_content_for_analysis(content):
         found_statement_header = False
         for statement in critical_statements:
             if statement in para_lower:
-                found_statement_header = True
-                break
+                # Additional validation: must also contain actual financial numbers
+                financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?', para)
+                if len(financial_numbers) >= 2 or len(para) > 500:  # Either has numbers or is substantial content
+                    found_statement_header = True
+                    break
         
         # If we found a financial statement header, grab this and the next several paragraphs as a block
         if found_statement_header:
@@ -357,9 +363,9 @@ def analyze_financial_report(report_text, analysis_id):
         def timeout_handler(signum, frame):
             raise TimeoutError("API call timed out")
         
-        # Set a 12-second timeout for single fast attempt
+        # Set a 10-second timeout for ultra-fast response
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(12)
+        signal.alarm(10)
         
         try:
             response = gemini_model.generate_content(
@@ -382,7 +388,7 @@ def analyze_financial_report(report_text, analysis_id):
                 
         except TimeoutError:
             signal.alarm(0)  # Cancel alarm
-            print(f"[{analysis_id}] API call timed out after 12 seconds")
+            print(f"[{analysis_id}] API call timed out after 10 seconds")
             return "Analysis timed out due to Heroku's 30-second limit. The document may be too complex. Please try with a smaller file or try again later."
             
         except Exception as api_error:
