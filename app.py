@@ -18,7 +18,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 
 # Import our existing analysis modules
 from analysis.config import gemini_model
-from analysis.prompts import FINANCIAL_ANALYSIS_PROMPT
+from analysis.prompts import FINANCIAL_ANALYSIS_PROMPT, SIMPLE_ANALYSIS_PROMPT
 from analysis.file_reader import read_report
 
 app = Flask(__name__)
@@ -108,7 +108,7 @@ def optimize_content_for_analysis(content):
     # Build optimized content with aggressive limits
     optimized_content = ""
     total_length = 0
-    max_length = 5000  # Further reduced for faster processing
+    max_length = 8000  # Increase content for better analysis quality
     
     for score, para in scored_paragraphs:
         if total_length + len(para) > max_length:
@@ -254,10 +254,10 @@ def analyze_financial_report(report_text, analysis_id):
         
         # Configure generation settings for faster response and timeout compliance
         generation_config = {
-            'temperature': 0.2,  # Even lower for faster, more focused responses
-            'top_p': 0.7,       # Reduced for faster generation
+            'temperature: 0.4,  # Even lower for faster, more focused responses
+            'top_p: 0.9,       # Reduced for faster generation
             'top_k': 20,        # Reduced for faster generation
-            'max_output_tokens': 1500,  # Reduced for faster response
+            'max_output_tokens: 2048,  # Reduced for faster response
         }
         
         start_time = time.time()

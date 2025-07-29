@@ -50,3 +50,17 @@ FINANCIAL REPORT TEXT TO ANALYZE:
 
 Please provide your analysis following the structure above:
 """ 
+
+# Simpler fallback prompt for when the main prompt fails
+SIMPLE_ANALYSIS_PROMPT = """
+Analyze this financial report and provide:
+
+1. Key financial metrics and ratios
+2. Main business highlights  
+3. Notable risks or concerns
+4. Overall assessment
+
+Financial data:
+{report_text}
+
+Please provide a clear analysis."""
