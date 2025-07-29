@@ -65,7 +65,7 @@ def optimize_content_for_analysis(content):
     Optimize content for financial analysis with special focus on financial statements
     Specifically targets Balance Sheet, Income Statement, and Cash Flow Statement sections
     """
-    if len(content) <= 15000:
+    if len(content) <= 10000:
         return content
     
     import re
@@ -149,7 +149,7 @@ def optimize_content_for_analysis(content):
     # Build final content: ALWAYS include financial statements + best regular content
     selected_paragraphs = []
     total_length = 0
-    max_length = 15000
+    max_length = 10000  # Much more aggressive for Heroku constraints
     
     # 1. FIRST: Add all financial statement paragraphs (high priority)
     for i, para in financial_statement_paragraphs:
@@ -323,7 +323,7 @@ def analyze_financial_report(report_text, analysis_id):
             'temperature': 0.3,  # Lower for faster, more focused responses
             'top_p': 0.8,       # Reduced for faster generation
             'top_k': 16,        # Reduced for faster generation
-            'max_output_tokens': 4000,  # Balanced for complete analysis within timeout
+            'max_output_tokens': 3000,  # Reduced further for faster response
         }
         
         start_time = time.time()
@@ -334,9 +334,9 @@ def analyze_financial_report(report_text, analysis_id):
         def timeout_handler(signum, frame):
             raise TimeoutError("API call timed out")
         
-        # Set a 22-second timeout to stay well within Heroku's 30s limit
+        # Set a 20-second timeout to stay well within Heroku's 30s limit
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(22)
+        signal.alarm(20)
         
         try:
             response = gemini_model.generate_content(
@@ -382,7 +382,7 @@ def analyze_financial_report(report_text, analysis_id):
                 
         except TimeoutError:
             signal.alarm(0)  # Cancel alarm
-            print(f"[{analysis_id}] API call timed out after 22 seconds")
+            print(f"[{analysis_id}] API call timed out after 20 seconds")
             return "Analysis timed out due to Heroku's 30-second limit. The document may be too complex. Please try with a smaller file or try again later."
             
         except Exception as api_error:
