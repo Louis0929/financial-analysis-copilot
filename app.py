@@ -254,10 +254,10 @@ def analyze_financial_report(report_text, analysis_id):
         
         # Configure generation settings for faster response and timeout compliance
         generation_config = {
-            'temperature: 0.4,  # Even lower for faster, more focused responses
-            'top_p: 0.9,       # Reduced for faster generation
+            'temperature': 0.4,  # Even lower for faster, more focused responses
+            'top_p': 0.9,       # Reduced for faster generation
             'top_k': 20,        # Reduced for faster generation
-            'max_output_tokens: 2048,  # Reduced for faster response
+            'max_output_tokens': 1500,  # Reduced for faster response
         }
         
         start_time = time.time()
