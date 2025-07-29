@@ -80,35 +80,53 @@ def optimize_content_for_analysis(content):
     # Critical financial statement identifiers - these MUST be included
     critical_statements = [
         'balance sheet', 'consolidated balance sheet', 'consolidated balance sheets',
-        'income statement', 'consolidated income statement', 'consolidated statements of income',
+        'income statement', 'income statements', 'consolidated income statement', 'consolidated statements of income',
         'cash flow statement', 'consolidated statements of cash flows', 'statements of cash flows',
         'consolidated statements of operations', 'statements of operations',
         'consolidated statements of comprehensive income', 'statements of comprehensive income',
-        'consolidated statements of stockholders', 'stockholders equity', "shareholders' equity"
+        'consolidated statements of stockholders', 'stockholders equity', "shareholders' equity",
+        # Add more variations found in 10-K reports
+        'statements of earnings', 'consolidated statements of earnings',
+        'item 8. financial statements', 'financial statements and supplementary data'
     ]
     
-    for i, para in enumerate(paragraphs):
+    # Enhanced approach: Look for financial statement blocks, not just individual paragraphs
+    i = 0
+    while i < len(paragraphs):
+        para = paragraphs[i]
         if len(para.strip()) < 20:
+            i += 1
             continue
             
         para_lower = para.lower()
         
-        # Check if this paragraph contains critical financial statement headers/data
-        is_financial_statement = False
+        # Check if this paragraph contains critical financial statement headers
+        found_statement_header = False
         for statement in critical_statements:
             if statement in para_lower:
-                is_financial_statement = True
+                found_statement_header = True
                 break
         
-        # Also check for sections with heavy numerical data (likely financial statements)
-        financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?|\d+\.\d+|\d+,\d+', para)
-        if len(financial_numbers) > 5:  # Very number-dense sections
-            is_financial_statement = True
-        
-        if is_financial_statement:
-            financial_statement_paragraphs.append((i, para))
+        # If we found a financial statement header, grab this and the next several paragraphs as a block
+        if found_statement_header:
+            # Include the header and next 10-15 paragraphs (capture the full table)
+            block_paras = []
+            for j in range(i, min(i + 15, len(paragraphs))):
+                if paragraphs[j].strip():
+                    block_paras.append(paragraphs[j])
+            
+            # Combine into one block
+            financial_block = '\n\n'.join(block_paras)
+            financial_statement_paragraphs.append((i, financial_block))
+            i += 15  # Skip ahead since we captured this block
         else:
-            regular_paragraphs.append((i, para))
+            # Check for sections with heavy numerical data (likely financial statements)
+            financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?|\d+\.\d+|\d+,\d+', para)
+            if len(financial_numbers) > 5:  # Very number-dense sections
+                financial_statement_paragraphs.append((i, para))
+            else:
+                regular_paragraphs.append((i, para))
+            i += 1
     
     # Score regular paragraphs
     scored_regular_paragraphs = []
@@ -185,6 +203,11 @@ def optimize_content_for_analysis(content):
         optimized_content += para + "\n\n"
     
     print(f"Content optimization: Found {len(financial_statement_paragraphs)} financial statement sections, {len(selected_paragraphs)} total sections selected")
+    
+    # Debug logging to help identify what statements were found
+    for i, (pos, content) in enumerate(financial_statement_paragraphs):
+        first_line = content.split('\n')[0][:100] if content else ""
+        print(f"  Financial Statement {i+1}: Position {pos}, First line: '{first_line}'")
     
     return optimized_content.strip()
 
