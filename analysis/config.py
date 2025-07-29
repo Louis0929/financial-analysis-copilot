@@ -25,7 +25,7 @@ def configure_gemini():
     genai.configure(api_key=api_key)
     
     # Initialize and return the Gemini 1.5 Flash model (most advanced)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.5-flash')
     return model
 
 # Initialize the model instance for import
