@@ -65,4 +65,8 @@ htmlcov/
 
 # Production
 *.pid
-*.sock 
+*.sock
+
+# Google Cloud SDK (不需要上傳到GitHub)
+google-cloud-sdk/
+google-cloud-sdk.tar.gz 
