@@ -3,8 +3,7 @@
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
   
   "features": {
-    "ghcr.io/devcontainers/features/google-cloud-cli:1": {},
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/google-cloud-cli:1": {}
   },
 
   "forwardPorts": [8080],
@@ -14,9 +13,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-python.python",
-        "ms-python.flake8",
-        "googlecloudtools.cloudcode"
+        "ms-python.python"
       ]
     }
   },
