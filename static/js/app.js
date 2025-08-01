@@ -133,12 +133,14 @@ class FinancialAnalysisApp {
         const fileName = document.getElementById('fileName');
         const fileSize = document.getElementById('fileSize');
         const uploadArea = document.getElementById('uploadArea');
+        const analysisOptions = document.getElementById('analysisOptions');
 
         fileName.textContent = file.name;
         fileSize.textContent = this.formatFileSize(file.size);
         
         uploadArea.style.display = 'none';
         fileInfo.style.display = 'block';
+        analysisOptions.style.display = 'block';
     }
 
     formatFileSize(bytes) {
@@ -154,9 +156,11 @@ class FinancialAnalysisApp {
         const fileInfo = document.getElementById('fileInfo');
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
+        const analysisOptions = document.getElementById('analysisOptions');
 
         fileInfo.style.display = 'none';
         uploadArea.style.display = 'block';
+        analysisOptions.style.display = 'none';
         fileInput.value = '';
         this.disableAnalyzeButton();
     }
@@ -179,6 +183,10 @@ class FinancialAnalysisApp {
 
         const formData = new FormData();
         formData.append('file', this.currentFile);
+        
+        // Get selected analysis type
+        const analysisType = document.querySelector('input[name="analysisType"]:checked').value;
+        formData.append('analysisType', analysisType);
 
         try {
             // Simulate loading steps

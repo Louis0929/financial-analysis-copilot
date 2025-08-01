@@ -21,26 +21,65 @@ def read_txt_file(filepath):
         return file.read()
 
 def read_pdf_file(filepath):
-    """Read content from a PDF file"""
+    """Read content from a PDF file using advanced extraction"""
     try:
-        import PyPDF2
-        content = ""
-        with open(filepath, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            for page in pdf_reader.pages:
-                content += page.extract_text() + "\n"
-        return content
+        # Try pdfplumber first (better for tables)
+        try:
+            import pdfplumber
+            content = ""
+            with pdfplumber.open(filepath) as pdf:
+                for page in pdf.pages:
+                    # Extract text
+                    text = page.extract_text()
+                    if text:
+                        content += text + "\n"
+                    
+                    # Extract tables separately
+                    tables = page.extract_tables()
+                    for table in tables:
+                        if table:
+                            # Convert table to readable text
+                            for row in table:
+                                if row:
+                                    content += " | ".join([str(cell) if cell else "" for cell in row]) + "\n"
+                            content += "\n"
+            return content
+        except ImportError:
+            # Fallback to PyPDF2
+            import PyPDF2
+            content = ""
+            with open(filepath, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
+                for page in pdf_reader.pages:
+                    content += page.extract_text() + "\n"
+            return content
     except ImportError:
-        raise ImportError("PyPDF2 is required for PDF files. Install with: pip install PyPDF2")
+        raise ImportError("pdfplumber or PyPDF2 is required for PDF files. Install with: pip install pdfplumber PyPDF2")
 
 def read_docx_file(filepath):
-    """Read content from a Word document"""
+    """Read content from a Word document including tables"""
     try:
         import docx
         doc = docx.Document(filepath)
         content = ""
+        
+        # Extract paragraphs
         for paragraph in doc.paragraphs:
             content += paragraph.text + "\n"
+        
+        # Extract tables separately (財務報表通常在表格裡)
+        for table in doc.tables:
+            content += "\n--- TABLE DATA ---\n"
+            for row in table.rows:
+                row_text = []
+                for cell in row.cells:
+                    cell_text = cell.text.strip()
+                    if cell_text:
+                        row_text.append(cell_text)
+                if row_text:
+                    content += " | ".join(row_text) + "\n"
+            content += "\n"
+        
         return content
     except ImportError:
         raise ImportError("python-docx is required for Word files. Install with: pip install python-docx")

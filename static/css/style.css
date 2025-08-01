@@ -221,6 +221,100 @@ body {
     background: #fee2e2;
 }
 
+/* Analysis Options Section */
+.analysis-options {
+    display: none;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 1.5rem 0;
+}
+
+.analysis-options h4 {
+    margin: 0 0 20px 0;
+    color: #374151;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 18px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.radio-option:hover {
+    border-color: #667eea;
+    background: #f8fafc;
+}
+
+.radio-option input[type="radio"] {
+    display: none;
+}
+
+.radio-custom {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #cbd5e0;
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: all 0.2s ease;
+}
+
+.radio-option input[type="radio"]:checked + .radio-custom {
+    border-color: #667eea;
+    background: #667eea;
+}
+
+.radio-option input[type="radio"]:checked + .radio-custom::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+}
+
+.radio-text {
+    flex: 1;
+}
+
+.radio-text strong {
+    display: block;
+    color: #374151;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.radio-text p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.radio-option input[type="radio"]:checked ~ .radio-text strong {
+    color: #667eea;
+}
+
 /* Buttons */
 .analyze-btn, .primary-btn, .secondary-btn, .retry-btn {
     display: inline-flex;

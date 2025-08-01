@@ -69,6 +69,29 @@
                         </div>
                     </div>
 
+                    <!-- Analysis Type Selection -->
+                    <div class="analysis-options" id="analysisOptions" style="display: none;">
+                        <h4>Select Analysis Type:</h4>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="analysisType" value="general" checked>
+                                <span class="radio-custom"></span>
+                                <div class="radio-text">
+                                    <strong>General Analysis</strong>
+                                    <p>Standard financial statement analysis</p>
+                                </div>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="analysisType" value="10k">
+                                <span class="radio-custom"></span>
+                                <div class="radio-text">
+                                    <strong>10-K Report Analysis</strong>
+                                    <p>Specialized for SEC 10-K annual reports with enhanced data extraction</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <button class="analyze-btn" id="analyzeBtn" disabled>
                         <i class="fas fa-brain"></i>
                         <span>Analyze Financial Statement</span>

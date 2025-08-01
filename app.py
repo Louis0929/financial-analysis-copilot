@@ -18,7 +18,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 
 # Import our existing analysis modules
 from analysis.config import gemini_model
-from analysis.prompts import FINANCIAL_ANALYSIS_PROMPT, SIMPLE_ANALYSIS_PROMPT
+from analysis.prompts import FINANCIAL_ANALYSIS_PROMPT, SIMPLE_ANALYSIS_PROMPT, TEN_K_ANALYSIS_PROMPT
 from analysis.file_reader import read_report
 
 app = Flask(__name__)
@@ -254,6 +254,9 @@ def upload_file():
                 'error': f'File type not supported. Allowed types: {", ".join(ALLOWED_EXTENSIONS).upper()}'
             }), 400
         
+        # Get analysis type
+        analysis_type = request.form.get('analysisType', 'general')
+        
         # Generate unique filename
         analysis_id = generate_analysis_id()
         original_filename = secure_filename(file.filename)
@@ -284,7 +287,7 @@ def upload_file():
         print(f"[{analysis_id}] Content optimized: {len(file_content)} -> {len(optimized_content)} chars ({optimization_ratio:.1%})")
         
         # Perform analysis with optimized content
-        analysis_result = analyze_financial_report(optimized_content, analysis_id)
+        analysis_result = analyze_financial_report(optimized_content, analysis_id, analysis_type)
         
         # Clean up the uploaded file after analysis
         os.remove(filepath)
@@ -325,13 +328,14 @@ def upload_file():
             'error': f'An unexpected error occurred: {str(e)}'
         }), 500
 
-def analyze_financial_report(report_text, analysis_id):
+def analyze_financial_report(report_text, analysis_id, analysis_type='general'):
     """
     Analyze financial report using Gemini API with optimizations
     
     Args:
         report_text (str): Content of the financial report
         analysis_id (str): Unique identifier for this analysis
+        analysis_type (str): Type of analysis ('general' or '10k')
         
     Returns:
         str: Analysis result or None if failed
@@ -341,8 +345,13 @@ def analyze_financial_report(report_text, analysis_id):
             print(f"[{analysis_id}] Gemini model not initialized")
             return None
         
-        # Format the optimized prompt
-        formatted_prompt = FINANCIAL_ANALYSIS_PROMPT.format(report_text=report_text)
+        # Choose prompt based on analysis type
+        if analysis_type == '10k':
+            formatted_prompt = TEN_K_ANALYSIS_PROMPT.format(report_text=report_text)
+            print(f"[{analysis_id}] Using 10-K specialized analysis prompt")
+        else:
+            formatted_prompt = FINANCIAL_ANALYSIS_PROMPT.format(report_text=report_text)
+            print(f"[{analysis_id}] Using general analysis prompt")
         
         print(f"[{analysis_id}] Starting analysis... (prompt length: {len(formatted_prompt)} chars)")
         
