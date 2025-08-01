@@ -1,0 +1,28 @@
+{
+  "name": "Financial Analysis Web App",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/google-cloud-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+
+  "forwardPorts": [8080],
+  
+  "postCreateCommand": "pip install -r requirements.txt",
+  
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.flake8",
+        "googlecloudtools.cloudcode"
+      ]
+    }
+  },
+
+  "remoteEnv": {
+    "FLASK_ENV": "development",
+    "PORT": "8080"
+  }
+}
