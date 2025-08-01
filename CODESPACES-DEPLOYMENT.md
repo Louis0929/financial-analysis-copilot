@@ -1,6 +1,6 @@
-# 🚀 GitHub Codespaces 部署指南
+# 🚀 GitHub Codespaces 部署指南 (簡化版)
 
-這是最簡單嘅部署方法！用GitHub Codespaces避免本地SDK問題。
+最簡單嘅部署方法！無需複雜配置。
 
 ## 📋 部署步驟
 
@@ -10,13 +10,19 @@
 3. 選擇 "Codespaces" 標籤
 4. 撳 "Create codespace on main"
 
-### 2. 等待環境準備
-- Codespaces會自動安裝：
-  - ✅ Google Cloud SDK
-  - ✅ Python依賴
-  - ✅ Docker支援
+### 2. 等待基本環境準備 (約1-2分鐘)
+- 會有基本嘅Ubuntu環境同Python
 
-### 3. 設置Google Cloud
+### 3. 設置Google Cloud SDK
+```bash
+# 執行設置腳本
+./setup-gcloud.sh
+
+# 重新載入環境
+source ~/.bashrc
+```
+
+### 4. 設置Google Cloud
 ```bash
 # 登入Google Cloud
 gcloud auth login
@@ -29,16 +35,15 @@ gcloud projects create financial-analysis-app-$(date +%s)
 gcloud config set project financial-analysis-app-$(date +%s)
 ```
 
-### 4. 設定API Key
+### 5. 設定API Key
 ```bash
 # 設定你嘅Gemini API Key
 export GOOGLE_API_KEY="your-gemini-api-key-here"
 ```
 
-### 5. 部署到Cloud Run
+### 6. 部署到Cloud Run
 ```bash
-# 直接執行部署腳本
-chmod +x deploy-to-cloudrun.sh
+# 執行部署腳本
 ./deploy-to-cloudrun.sh
 ```
 
