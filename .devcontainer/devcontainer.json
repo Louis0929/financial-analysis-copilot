@@ -2,13 +2,9 @@
   "name": "Financial Analysis Web App",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
   
-  "features": {
-    "ghcr.io/devcontainers/features/google-cloud-cli:1": {}
-  },
-
   "forwardPorts": [8080],
   
-  "postCreateCommand": "pip install -r requirements.txt",
+  "postCreateCommand": "pip install -r requirements.txt && curl -sSL https://sdk.cloud.google.com | bash && exec -l $SHELL",
   
   "customizations": {
     "vscode": {
@@ -20,6 +16,7 @@
 
   "remoteEnv": {
     "FLASK_ENV": "development",
-    "PORT": "8080"
+    "PORT": "8080",
+    "PATH": "${PATH}:/home/vscode/google-cloud-sdk/bin"
   }
 }
