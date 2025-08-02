@@ -227,7 +227,19 @@ def analyze_financial_report(report_text, analysis_id, analysis_type='general'):
         if analysis_type == '10k':
             # --- STEP 1: LOCATE AND EXTRACT FINANCIAL STATEMENTS ---
             print(f"[{analysis_id}] 10-K Analysis Step 1: Locating financial statements...")
-            locate_prompt = LOCATE_FINANCIALS_PROMPT.format(report_text=report_text[:200000])
+
+            # --- Smart Sampling Logic ---
+            # Use a combined header/footer sample for large documents to find financials efficiently
+            if len(report_text) > 300000:
+                print(f"[{analysis_id}] Document is large. Using header/footer sampling for location.")
+                header = report_text[:100000]  # First 100k chars
+                footer = report_text[-200000:] # Last 200k chars
+                sampled_text = f"--- DOCUMENT START ---\n{header}\n\n...[content omitted]...\n\n--- DOCUMENT END ---\n{footer}"
+            else:
+                # If the document is small enough, just send the whole thing
+                sampled_text = report_text
+            
+            locate_prompt = LOCATE_FINANCIALS_PROMPT.format(report_text=sampled_text)
             extracted_text, error = _call_gemini_api(locate_prompt, analysis_id, timeout_seconds=60)
 
             if error:
@@ -282,7 +294,7 @@ def health_check():
         'status': 'healthy',
         'gemini_model': 'available' if gemini_model else 'unavailable',
         'timestamp': datetime.now().isoformat(),
-        'version': '2.2.0' # Incremented version for diagnostics and UI
+        'version': '2.3.0' # Incremented version for smart sampling
     })
 
 @app.errorhandler(413)
@@ -313,8 +325,7 @@ if __name__ == '__main__':
         print("✅ Gemini model ready for analysis")
     
     print("🚀 Starting Financial Analysis Co-Pilot Web App...")
-    print("💅 New card-based UI is active.")
-    print("🔬 Diagnostic logging for 10-K analysis is enabled.")
+    print("🧠 Now with smart sampling for large document analysis!")
     
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.environ.get('PORT', 8080))
