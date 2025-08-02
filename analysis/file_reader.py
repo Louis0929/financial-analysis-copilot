@@ -57,95 +57,43 @@ def read_pdf_file(filepath):
         raise ImportError("pdfplumber or PyPDF2 is required for PDF files. Install with: pip install pdfplumber PyPDF2")
 
 def read_docx_file(filepath):
-    """Read content from a Word document including tables with enhanced extraction"""
+    """Read content from a Word document including tables"""
     try:
         import docx
         doc = docx.Document(filepath)
         content = ""
         
-        # DEBUG: Add extraction metadata
-        content += f"=== DOCX EXTRACTION DEBUG ===\n"
-        content += f"Total paragraphs: {len(doc.paragraphs)}\n"
-        content += f"Total tables: {len(doc.tables)}\n"
-        content += f"=== END DEBUG ===\n\n"
+        # Simple debug info first
+        content += f"DOCX FILE LOADED: {len(doc.paragraphs)} paragraphs, {len(doc.tables)} tables\n\n"
         
-        # Extract paragraphs with more aggressive number detection
-        paragraph_count = 0
+        # Extract paragraphs
         for paragraph in doc.paragraphs:
             para_text = paragraph.text.strip()
             if para_text:  # Only add non-empty paragraphs
                 content += para_text + "\n"
-                # Look for financial numbers in paragraphs too
-                if any(char.isdigit() for char in para_text) and (',' in para_text or '$' in para_text):
-                    content += f"[FINANCIAL_DATA_PARAGRAPH]: {para_text}\n"
-                paragraph_count += 1
         
-        content += f"\n=== EXTRACTED {paragraph_count} NON-EMPTY PARAGRAPHS ===\n\n"
-        
-        # Extract tables with enhanced debugging
-        if len(doc.tables) == 0:
-            content += "⚠️ WARNING: NO TABLES FOUND IN DOCUMENT\n\n"
-        
+        # Extract tables 
         for table_idx, table in enumerate(doc.tables):
             content += f"\n=== TABLE {table_idx + 1} DATA ===\n"
-            content += f"Table has {len(table.rows)} rows and {len(table.columns)} columns\n"
             
-            # Extract all cells, including nested content
+            # Simple table extraction without too much debug
             for row_idx, row in enumerate(table.rows):
                 row_text = []
-                for cell_idx, cell in enumerate(row.cells):
-                    # Get all text from cell, including nested paragraphs
-                    cell_content = ""
-                    for para in cell.paragraphs:
-                        cell_content += para.text.strip() + " "
-                    cell_content = cell_content.strip()
-                    
-                    # Also try direct cell.text as backup
-                    if not cell_content:
-                        cell_content = cell.text.strip()
-                    
-                    row_text.append(cell_content if cell_content else "")
+                for cell in row.cells:
+                    cell_text = cell.text.strip()
+                    row_text.append(cell_text if cell_text else "")
                 
-                # Always add the row, even if some cells are empty
-                row_data = " | ".join(row_text)
-                content += f"ROW_{row_idx}: {row_data}\n"
-                
-                # Flag rows with financial data
-                if any(char.isdigit() for char in row_data) and (',' in row_data or '$' in row_data):
-                    content += f"[FINANCIAL_ROW_{row_idx}]: {row_data}\n"
+                # Add the row
+                content += " | ".join(row_text) + "\n"
             
             content += f"=== END TABLE {table_idx + 1} ===\n\n"
-            
-            # Also extract table in a more readable format for financial data
-            if len(table.rows) > 1:  # Has header row
-                content += f"--- TABLE {table_idx + 1} FORMATTED ---\n"
-                for row_idx, row in enumerate(table.rows):
-                    cells = []
-                    for cell in row.cells:
-                        cell_content = ""
-                        for para in cell.paragraphs:
-                            cell_content += para.text.strip() + " "
-                        cells.append(cell_content.strip())
-                    
-                    if row_idx == 0:  # Header row
-                        content += "HEADERS: " + " | ".join(cells) + "\n"
-                    else:  # Data rows
-                        content += f"ROW {row_idx}: " + " | ".join(cells) + "\n"
-                content += f"--- END FORMATTED TABLE {table_idx + 1} ---\n\n"
-        
-        # Final debug summary
-        content += f"\n=== FINAL EXTRACTION SUMMARY ===\n"
-        content += f"Content length: {len(content)} characters\n"
-        content += f"Contains 'revenue': {'revenue' in content.lower()}\n"
-        content += f"Contains 'income': {'income' in content.lower()}\n"
-        content += f"Contains 'cost': {'cost' in content.lower()}\n"
-        content += f"Contains commas: {',' in content}\n"
-        content += f"Contains dollar signs: {'$' in content}\n"
-        content += "=== END SUMMARY ===\n\n"
         
         return content
     except ImportError:
         raise ImportError("python-docx is required for Word files. Install with: pip install python-docx")
+    except Exception as e:
+        # Add error handling to prevent 500 errors
+        return f"ERROR reading DOCX file: {str(e)}\n\nPartial content may be missing."
 
 def read_excel_file(filepath):
     """Read content from an Excel file"""
