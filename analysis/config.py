@@ -12,7 +12,7 @@ load_dotenv()
 
 def configure_gemini():
     """
-    Configure and initialize the Google Gemini model
+    Configure and initialize the Google Gemini 2.5 Flash model as per user request
     Returns the configured model instance
     """
     # Get API key from environment variables
@@ -24,21 +24,15 @@ def configure_gemini():
     # Configure the Gemini API
     genai.configure(api_key=api_key)
     
-    # Try 1.5-flash first (faster), fallback to 1.5-pro (more reliable for large docs)
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        print("Using Gemini 1.5 Flash model")
-        return model
-    except Exception as e:
-        print(f"Flash model failed: {e}, trying Pro model...")
-        model = genai.GenerativeModel('gemini-1.5-pro')
-        print("Using Gemini 1.5 Pro model")
-        return model
+    # Initialize and return the Gemini 2.5 Flash model
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    print("✅ Using Gemini 2.5 Flash model as requested.")
+    return model
 
 # Initialize the model instance for import
 try:
     gemini_model = configure_gemini()
-    print("✅ Google Gemini model initialized successfully")
+    print("✅ Google Gemini 2.5 Flash model initialized successfully")
 except Exception as e:
     print(f"❌ Error initializing Gemini model: {e}")
     gemini_model = None 
