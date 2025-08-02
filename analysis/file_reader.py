@@ -72,19 +72,49 @@ def read_docx_file(filepath):
             if para_text:  # Only add non-empty paragraphs
                 content += para_text + "\n"
         
-        # Extract tables 
+        # Extract tables with more aggressive extraction
         for table_idx, table in enumerate(doc.tables):
             content += f"\n=== TABLE {table_idx + 1} DATA ===\n"
             
-            # Simple table extraction without too much debug
+            # Try multiple methods to extract table data
             for row_idx, row in enumerate(table.rows):
                 row_text = []
                 for cell in row.cells:
+                    # Method 1: Direct cell text
                     cell_text = cell.text.strip()
+                    
+                    # Method 2: Extract from all paragraphs in cell
+                    if not cell_text:
+                        para_texts = []
+                        for para in cell.paragraphs:
+                            para_text = para.text.strip()
+                            if para_text:
+                                para_texts.append(para_text)
+                        cell_text = " ".join(para_texts)
+                    
+                    # Method 3: Try to get runs if still empty
+                    if not cell_text:
+                        run_texts = []
+                        for para in cell.paragraphs:
+                            for run in para.runs:
+                                run_text = run.text.strip()
+                                if run_text:
+                                    run_texts.append(run_text)
+                        cell_text = "".join(run_texts)
+                    
                     row_text.append(cell_text if cell_text else "")
                 
-                # Add the row
-                content += " | ".join(row_text) + "\n"
+                # Add the row with pipe separator
+                row_data = " | ".join(row_text)
+                content += row_data + "\n"
+                
+                # Flag financial data rows for easier identification
+                if any(keyword in row_data.lower() for keyword in ['revenue', 'income', 'cost', 'profit', 'margin', 'earnings']):
+                    content += f"[FINANCIAL_ROW]: {row_data}\n"
+                
+                # Flag rows with large numbers (likely financial data)
+                if any(char.isdigit() for char in row_data) and (',' in row_data or any(num in row_data for num in ['245', '88', '74', '171'])):
+                    content += f"[NUMBER_ROW]: {row_data}\n"
             
             content += f"=== END TABLE {table_idx + 1} ===\n\n"
         

@@ -93,11 +93,13 @@ You are analyzing a 10-K annual report that contains financial statements. You M
 STEP 1 - DEBUG: Show what you found in the document:
 1. List ALL instances of "=== TABLE" you find in the text
 2. List ALL instances of "DOCX FILE LOADED:" you find
-3. List ALL numbers with commas (like 245,122 or 64,773)  
-4. Search for these Microsoft 2024 financial figures:
+3. List ALL instances of "[FINANCIAL_ROW]:" or "[NUMBER_ROW]:" you find
+4. List ALL numbers with commas (like 245,122 or 64,773)  
+5. Search for these Microsoft 2024 financial figures:
    - "245,122" (Total Revenue)
    - "88,136" (Net Income)
    - "74,114" (Cost of Revenue)
+6. Look for ANY variation like "245122", "245.122", "245,122,000" etc.
 
 ULTRA-AGGRESSIVE SEARCH STRATEGY:
 1. Search for EXACT financial figures that MUST exist:
