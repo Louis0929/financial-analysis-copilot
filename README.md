@@ -29,18 +29,6 @@ A professional, AI-powered web application designed to analyze corporate financi
 
 ---
 
-## 🖼️ Screenshots
-
-*(It is highly recommended to add a few screenshots of your application here. For example: the upload interface, the loading screen, and the final analysis report.)*
-
-**Upload Interface**
-`![Upload UI](link_to_your_screenshot.png)`
-
-**Analysis Report**
-`![Report UI](link-to-your_screenshot.png)`
-
----
-
 ## 🚀 Getting Started
 
 Follow these instructions to set up and run the project on your local machine.
