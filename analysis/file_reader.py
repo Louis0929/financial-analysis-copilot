@@ -68,17 +68,28 @@ def read_docx_file(filepath):
             content += paragraph.text + "\n"
         
         # Extract tables separately (財務報表通常在表格裡)
-        for table in doc.tables:
-            content += "\n--- TABLE DATA ---\n"
-            for row in table.rows:
+        for table_idx, table in enumerate(doc.tables):
+            content += f"\n=== TABLE {table_idx + 1} DATA ===\n"
+            for row_idx, row in enumerate(table.rows):
                 row_text = []
                 for cell in row.cells:
                     cell_text = cell.text.strip()
-                    if cell_text:
-                        row_text.append(cell_text)
-                if row_text:
-                    content += " | ".join(row_text) + "\n"
+                    # Include empty cells to maintain table structure
+                    row_text.append(cell_text if cell_text else "")
+                # Always add the row, even if some cells are empty
+                content += " | ".join(row_text) + "\n"
             content += "\n"
+            
+            # Also extract table in a more readable format for financial data
+            if len(table.rows) > 1:  # Has header row
+                content += f"--- TABLE {table_idx + 1} FORMATTED ---\n"
+                for row_idx, row in enumerate(table.rows):
+                    cells = [cell.text.strip() for cell in row.cells]
+                    if row_idx == 0:  # Header row
+                        content += "HEADERS: " + " | ".join(cells) + "\n"
+                    else:  # Data rows
+                        content += f"ROW {row_idx}: " + " | ".join(cells) + "\n"
+                content += "\n"
         
         return content
     except ImportError:
