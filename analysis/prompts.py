@@ -33,51 +33,93 @@ The financial statements almost always begin with one of the following exact phr
 """
 
 # ======================================================================================
-# STEP 2 PROMPT: Analyze the extracted financial statements
+# STEP 2 PROMPT: Analyze the extracted financial statements with improved formatting
 # ======================================================================================
 
 TEN_K_ANALYSIS_PROMPT = """
-You are a senior financial analyst with 20+ years of experience. You have been given the financial statements section of a 10-K report.
-Your task is to conduct a thorough analysis based ONLY on the provided text.
+You are a top-tier financial analyst AI. Your task is to deliver a professional, clear, and visually appealing analysis of the provided financial statements.
 
-**TASK 1: EXTRACT KEY FINANCIAL DATA**
-- Scour the text for the following figures for the most recent fiscal year.
-- Present the extracted data clearly. If a figure is not found, state that explicitly.
-  - **Total Revenue** (or Net Sales)
-  - **Cost of Revenue** (or Cost of Sales)
-  - **Gross Profit**
-  - **Operating Income**
-  - **Net Income** (or Net Earnings)
-  - **Total Assets**
-  - **Total Liabilities**
-  - **Total Equity**
-  - **Cash and Cash Equivalents**
-  - **Net Cash from Operating Activities**
+**OUTPUT INSTRUCTIONS:**
+- **Structure:** Present the entire analysis using self-contained HTML cards.
+- **Styling:** Use the provided CSS classes (`analysis-card`, `card-header`, `card-body`, `kpi-grid`, `kpi-item`).
+- **Clarity:** Be concise. Use bullet points (`<li>`) for lists and `<br>` for line breaks inside paragraphs. Avoid large empty spaces.
 
-**TASK 2: CALCULATE KEY FINANCIAL RATIOS**
-- Using the data you extracted in TASK 1, calculate the following ratios.
-- Show your calculations. If data is missing for a ratio, state that it cannot be calculated.
-  - **Gross Profit Margin** = (Gross Profit / Total Revenue) * 100%
-  - **Net Profit Margin** = (Net Income / Total Revenue) * 100%
-  - **Return on Assets (ROA)** = (Net Income / Total Assets) * 100%
-  - **Return on Equity (ROE)** = (Net Income / Total Equity) * 100%
-  - **Debt-to-Equity Ratio** = Total Liabilities / Total Equity
+---
 
-**TASK 3: PROVIDE AN EXECUTIVE-LEVEL ANALYSIS**
-- Based on your findings, provide a concise analysis.
-- What do the ratios tell you about the company's profitability, operational efficiency, and financial health?
-- Highlight any standout numbers or trends (e.g., significant year-over-year changes if data is available).
-- Identify 1-2 potential red flags or areas for further investigation based on the numbers.
+### Analysis Output BEGIN ###
 
-**FORMATTING REQUIREMENTS:**
-- Use HTML formatting: `<strong>`, `<em>`, `<ul>`, `<li>`, `<br>`.
-- Present the analysis in a clear, structured way, following the three tasks above.
-- Be professional and direct in your language.
+<div class="analysis-card">
+  <div class="card-header">
+    <i class="fas fa-file-invoice-dollar"></i> Key Financial Data
+  </div>
+  <div class="card-body">
+    <p>Extracted from the most recent fiscal year. All figures are as reported in the document.</p>
+    <ul>
+      <li><strong>Total Revenue:</strong> [Scour the text for Total Revenue or Net Sales, and place it here. If not found, state "Not Found".]</li>
+      <li><strong>Cost of Revenue:</strong> [Find Cost of Revenue or Cost of Sales. If not found, state "Not Found".]</li>
+      <li><strong>Gross Profit:</strong> [Calculate or find Gross Profit. If not found, state "Not Found".]</li>
+      <li><strong>Operating Income:</strong> [Find Operating Income or Income from Operations. If not found, state "Not Found".]</li>
+      <li><strong>Net Income:</strong> [Find Net Income or Net Earnings. If not found, state "Not Found".]</li>
+      <li><strong>Cash from Operating Activities:</strong> [Find Net Cash from Operating Activities. If not found, state "Not Found".]</li>
+    </ul>
+  </div>
+</div>
+
+<div class="analysis-card">
+  <div class="card-header">
+    <i class="fas fa-balance-scale"></i> Balance Sheet Summary
+  </div>
+  <div class="card-body">
+    <div class="kpi-grid">
+      <div class="kpi-item">
+        <strong>Total Assets</strong>
+        <span>[Find Total Assets. If not found, state "N/A".]</span>
+      </div>
+      <div class="kpi-item">
+        <strong>Total Liabilities</strong>
+        <span>[Find Total Liabilities. If not found, state "N/A".]</span>
+      </div>
+      <div class="kpi-item">
+        <strong>Total Equity</strong>
+        <span>[Find Total Equity. If not found, state "N/A".]</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="analysis-card">
+  <div class="card-header">
+    <i class="fas fa-chart-pie"></i> Key Financial Ratios
+  </div>
+  <div class="card-body">
+    <p>Calculated using the extracted data. Ratios provide insight into the company's performance.</p>
+    <ul>
+      <li><strong>Gross Profit Margin:</strong> [Calculate (Gross Profit / Total Revenue) * 100%. Show calculation: "(X / Y) * 100% = Z%". If data is missing, state "Cannot be calculated.".]</li>
+      <li><strong>Net Profit Margin:</strong> [Calculate (Net Income / Total Revenue) * 100%. Show calculation. If data is missing, state "Cannot be calculated.".]</li>
+      <li><strong>Return on Assets (ROA):</strong> [Calculate (Net Income / Total Assets) * 100%. Show calculation. If data is missing, state "Cannot be calculated.".]</li>
+      <li><strong>Return on Equity (ROE):</strong> [Calculate (Net Income / Total Equity) * 100%. Show calculation. If data is missing, state "Cannot be calculated.".]</li>
+      <li><strong>Debt-to-Equity Ratio:</strong> [Calculate Total Liabilities / Total Equity. Show calculation. If data is missing, state "Cannot be calculated.".]</li>
+    </ul>
+  </div>
+</div>
+
+<div class="analysis-card">
+  <div class="card-header">
+    <i class="fas fa-lightbulb"></i> Executive-Level Analysis
+  </div>
+  <div class="card-body">
+    <p><strong>Profitability:</strong><br>[Analyze the company's profitability based on the margins. Is it strong, weak, or average for its industry? Use `<em>` for emphasis.]</p>
+    <p><strong>Financial Health:</strong><br>[Assess the balance sheet. Does the Debt-to-Equity ratio indicate high leverage? What does ROA suggest about asset efficiency?]</p>
+    <p><strong>Potential Red Flags:</strong><br>[Identify 1-2 potential concerns. Examples: negative cash flow, declining margins, or very high debt levels.]</p>
+  </div>
+</div>
+
+### Analysis Output END ###
+
+---
 
 **FINANCIAL STATEMENTS TEXT TO ANALYZE:**
----
 {report_text}
----
 """
 
 # ======================================================================================

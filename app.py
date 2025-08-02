@@ -227,18 +227,27 @@ def analyze_financial_report(report_text, analysis_id, analysis_type='general'):
         if analysis_type == '10k':
             # --- STEP 1: LOCATE AND EXTRACT FINANCIAL STATEMENTS ---
             print(f"[{analysis_id}] 10-K Analysis Step 1: Locating financial statements...")
-            # We use a shorter timeout for this focused extraction task.
-            locate_prompt = LOCATE_FINANCIALS_PROMPT.format(report_text=report_text[:200000]) # Limit input for location step
+            locate_prompt = LOCATE_FINANCIALS_PROMPT.format(report_text=report_text[:200000])
             extracted_text, error = _call_gemini_api(locate_prompt, analysis_id, timeout_seconds=60)
 
             if error:
                 return f"Error during financial statement location (Step 1): {error}"
-            if not extracted_text or len(extracted_text) < 100:
-                # If extraction fails, fall back to analyzing a chunk of the raw text
-                print(f"[{analysis_id}] Financial statement location failed or returned minimal content. Falling back to raw content analysis.")
-                final_analysis_text = report_text[:100000] # Use a sizable chunk of the start
+
+            # --- DIAGNOSTIC LOGGING ---
+            print("\n" + "="*80)
+            print(f"[{analysis_id}] [DIAGNOSTIC LOG] Start of Extracted Text from Step 1:")
+            print("-" * 80)
+            print(extracted_text[:5000] if extracted_text else "No text was extracted.")
+            print("-" * 80)
+            print(f"[{analysis_id}] [DIAGNOSTIC LOG] End of Extracted Text. Total length: {len(extracted_text) if extracted_text else 0} chars.")
+            print("="*80 + "\n")
+            # --- END DIAGNOSTIC LOGGING ---
+
+            if not extracted_text or len(extracted_text) < 100 or "FINANCIAL_STATEMENTS_NOT_FOUND" in extracted_text:
+                print(f"[{analysis_id}] Location failed or returned minimal/no content. Falling back to raw content.")
+                final_analysis_text = report_text[:100000]
             else:
-                print(f"[{analysis_id}] Successfully extracted {len(extracted_text)} characters of financial data.")
+                print(f"[{analysis_id}] Successfully extracted financial data for Step 2.")
                 final_analysis_text = extracted_text
 
             # --- STEP 2: ANALYZE THE EXTRACTED FINANCIAL DATA ---
@@ -249,12 +258,10 @@ def analyze_financial_report(report_text, analysis_id, analysis_type='general'):
             if error:
                 return f"Error during financial analysis (Step 2): {error}"
             
-            # Add a header to clarify the result is from a two-step process
-            return f"<h3>Two-Step 10-K Analysis Result</h3>\n{analysis_result}"
+            return analysis_result
 
         else: # General Analysis
             print(f"[{analysis_id}] Performing General Analysis...")
-            # For general analysis, use a single-step approach on a truncated version of the text
             general_prompt = FINANCIAL_ANALYSIS_PROMPT.format(report_text=report_text[:150000])
             analysis_result, error = _call_gemini_api(general_prompt, analysis_id, timeout_seconds=120)
             
@@ -275,7 +282,7 @@ def health_check():
         'status': 'healthy',
         'gemini_model': 'available' if gemini_model else 'unavailable',
         'timestamp': datetime.now().isoformat(),
-        'version': '2.1.0' # Incremented version for new analysis logic
+        'version': '2.2.0' # Incremented version for diagnostics and UI
     })
 
 @app.errorhandler(413)
@@ -306,8 +313,8 @@ if __name__ == '__main__':
         print("✅ Gemini model ready for analysis")
     
     print("🚀 Starting Financial Analysis Co-Pilot Web App...")
-    print("📁 Supported file formats: TXT, PDF, DOCX, XLSX, CSV")
-    print("🔬 New two-step analysis enabled for 10-K reports!")
+    print("💅 New card-based UI is active.")
+    print("🔬 Diagnostic logging for 10-K analysis is enabled.")
     
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.environ.get('PORT', 8080))
