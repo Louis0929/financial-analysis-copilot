@@ -112,6 +112,10 @@ def read_docx_file(filepath):
                 if any(keyword in row_data.lower() for keyword in ['revenue', 'income', 'cost', 'profit', 'margin', 'earnings']):
                     content += f"[FINANCIAL_ROW]: {row_data}\n"
                 
+                # Flag rows with dollar signs (financial data)
+                if '$' in row_data and any(char.isdigit() for char in row_data):
+                    content += f"[DOLLAR_ROW]: {row_data}\n"
+                
                 # Flag rows with large numbers (likely financial data)
                 if any(char.isdigit() for char in row_data) and (',' in row_data or any(num in row_data for num in ['245', '88', '74', '171'])):
                     content += f"[NUMBER_ROW]: {row_data}\n"

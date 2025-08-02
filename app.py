@@ -90,7 +90,14 @@ def optimize_content_for_analysis(content):
         'item 8. financial statements and supplementary data',
         # Add table headers that indicate actual financial data
         '(in millions, except per share', '(in thousands, except per share', '(dollars in millions)',
-        'three months ended', 'year ended june 30', 'fiscal year ended'
+        'three months ended', 'year ended june 30', 'fiscal year ended',
+        # Microsoft-specific 10K identifiers
+        '=== table', 'table data ===', '[financial_row]', '[dollar_row]', '[number_row]',
+        # Microsoft financial line items
+        'total revenue', 'net income', 'cost of revenue', 'gross margin',
+        'operating income', 'income from operations',
+        # Dollar amounts pattern
+        'million', 'billion', 'except per share', '$'
     ]
     
     # Enhanced approach: Look for financial statement blocks, not just individual paragraphs
@@ -173,7 +180,7 @@ def optimize_content_for_analysis(content):
     # Build final content: ALWAYS include financial statements + best regular content
     selected_paragraphs = []
     total_length = 0
-    max_length = 25000  # Increased for comprehensive analysis on Cloud Run
+    max_length = 150000  # Much larger for 10K reports with extensive financial data
     
     # 1. FIRST: Add all financial statement paragraphs (high priority)
     for i, para in financial_statement_paragraphs:
