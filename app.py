@@ -291,8 +291,9 @@ def upload_file():
         if analysis_type == '10k':
             # For 10K analysis, let's try with raw content first to see what we get
             print(f"[{analysis_id}] Using RAW content for 10K analysis (debugging)")
-            analysis_content = file_content[:200000]  # Take first 200K chars raw
+            analysis_content = file_content[:100000]  # Reduced to 100K chars for stability
             print(f"[{analysis_id}] Raw content sample: {file_content[:500]}...")
+            print(f"[{analysis_id}] Using stable Gemini 1.5 Flash model")
         else:
             # Optimize content for faster processing
             optimized_content = optimize_content_for_analysis(file_content)
