@@ -308,15 +308,22 @@ class FinancialAnalysisApp {
 
         const { jsPDF } = window.jspdf;
         const reportElement = document.getElementById('resultsSection');
+        const analysisTextElement = document.getElementById('analysisText'); // The scrollable element
         const downloadBtn = document.getElementById('downloadBtn');
         const originalBtnText = downloadBtn.innerHTML;
 
-        // Provide visual feedback to the user
+        // Provide visual feedback
         downloadBtn.disabled = true;
         downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
 
+        // Temporarily modify styles to capture full content
+        const originalMaxHeight = analysisTextElement.style.maxHeight;
+        const originalOverflow = analysisTextElement.style.overflowY;
+        analysisTextElement.style.maxHeight = 'none';
+        analysisTextElement.style.overflowY = 'visible';
+
         html2canvas(reportElement, {
-            scale: 2, // Increase scale for better resolution
+            scale: 2,
             useCORS: true,
             logging: false,
         }).then(canvas => {
@@ -325,27 +332,35 @@ class FinancialAnalysisApp {
                 const pdf = new jsPDF({
                     orientation: 'p',
                     unit: 'px',
-                    format: [canvas.width, canvas.height]
+                    format: [canvas.width, canvas.height],
                 });
 
-                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-                
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height, undefined, 'FAST');
                 const fileName = `Financial_Analysis_${this.currentAnalysis.analysis_id}.pdf`;
                 pdf.save(fileName);
-
             } catch (error) {
                 console.error("Error generating PDF:", error);
                 alert("Sorry, there was an error generating the PDF. Please try again.");
             } finally {
+                // Restore original styles
+                analysisTextElement.style.maxHeight = originalMaxHeight;
+                analysisTextElement.style.overflowY = originalOverflow;
                 // Restore button state
                 downloadBtn.disabled = false;
                 downloadBtn.innerHTML = originalBtnText;
             }
+        }).catch(err => {
+            // Also restore styles on html2canvas error
+            analysisTextElement.style.maxHeight = originalMaxHeight;
+            analysisTextElement.style.overflowY = originalOverflow;
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = originalBtnText;
+            console.error("html2canvas failed:", err);
+            alert("Sorry, there was an error capturing the content for the PDF.");
         });
     }
 
     // This function is no longer needed as we are capturing the HTML content directly.
-    // We'll keep it here, commented out, in case we need a plain text fallback later.
     /*
     formatReportForDownload(data) {
         return `Financial Statement Analysis Report
@@ -382,4 +397,4 @@ if ('serviceWorker' in navigator) {
                 console.log('SW registration failed: ', registrationError);
             });
     });
-} 
+}
