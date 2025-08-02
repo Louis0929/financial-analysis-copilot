@@ -8,9 +8,9 @@ Contains prompts for a two-step 10-K analysis process.
 # ======================================================================================
 
 LOCATE_FINANCIALS_PROMPT = """
-You are an expert document analyst. Your task is to find the beginning of the core financial statements section in this 10-K report.
-The financial statements almost always begin with one of the following exact phrases (case-insensitive). Find the FIRST occurrence of any of these headers:
+You are an expert document analyst specializing in SEC filings. Your task is to intelligently locate and extract the complete financial statements section from a 10-K report.
 
+**Primary Goal:** Find the beginning of the core financial statements. These almost always begin with one of the following exact phrases (case-insensitive). Find the **FIRST occurrence** of any of these headers:
 - "consolidated balance sheets"
 - "consolidated statements of financial position"
 - "consolidated statements of income"
@@ -18,13 +18,15 @@ The financial statements almost always begin with one of the following exact phr
 - "consolidated statements of operations"
 - "consolidated statements of comprehensive income"
 - "consolidated statements of cash flows"
-- "report of independent registered public accounting firm"
+
+**Secondary Strategy (if primary headers are not obvious):**
+- Look for a page titled "INDEX TO CONSOLIDATED FINANCIAL STATEMENTS". If you find this, the statements will begin shortly after.
+- Look for the "REPORT OF INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM". The financial statements almost always begin immediately after this report. Find the accounting firm's report, and then start the extraction from the page *after* it ends.
 
 **Instructions:**
-1.  Read the entire document provided below.
-2.  Find the line that contains the **first occurrence** of any of the headers listed above.
-3.  Return the **ENTIRE text of the document starting from that line**. Do not omit anything.
-4.  If none of these headers are found, return the text "FINANCIAL_STATEMENTS_NOT_FOUND".
+1.  Analyze the entire document provided below to find the starting point using the strategies above.
+2.  Once you locate the starting point, return the **ENTIRE rest of the document's text starting from that point**. Do not omit anything. Your goal is to pass the full financial statements, including all subsequent tables and notes, to the next stage of analysis.
+3.  If, after using all strategies, you absolutely cannot find the financial statements, return the single phrase: "FINANCIAL_STATEMENTS_NOT_FOUND".
 
 **DOCUMENT TEXT:**
 ---
@@ -43,6 +45,7 @@ You are a top-tier financial analyst AI. Your task is to deliver a professional,
 - **Structure:** Present the entire analysis using self-contained HTML cards.
 - **Styling:** Use the provided CSS classes (`analysis-card`, `card-header`, `card-body`, `kpi-grid`, `kpi-item`).
 - **Clarity:** Be concise. Use bullet points (`<li>`) for lists and `<br>` for line breaks inside paragraphs. Avoid large empty spaces.
+- **Data First:** If you cannot find a specific number, **state "Not Found" and move on**. Do not stop the analysis. Generate the full report structure regardless.
 
 ---
 

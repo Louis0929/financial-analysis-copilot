@@ -166,7 +166,7 @@ def upload_file():
             'error': f'An unexpected error occurred: {str(e)}'
         }), 500
 
-def _call_gemini_api(prompt, analysis_id, timeout_seconds=120):
+def _call_gemini_api(prompt, analysis_id, timeout_seconds=180): # Increased timeout for long docs
     """
     A helper function to call the Gemini API with a given prompt and timeout.
     """
@@ -226,21 +226,11 @@ def analyze_financial_report(report_text, analysis_id, analysis_type='general'):
     try:
         if analysis_type == '10k':
             # --- STEP 1: LOCATE AND EXTRACT FINANCIAL STATEMENTS ---
-            print(f"[{analysis_id}] 10-K Analysis Step 1: Locating financial statements...")
-
-            # --- Smart Sampling Logic ---
-            # Use a combined header/footer sample for large documents to find financials efficiently
-            if len(report_text) > 300000:
-                print(f"[{analysis_id}] Document is large. Using header/footer sampling for location.")
-                header = report_text[:100000]  # First 100k chars
-                footer = report_text[-200000:] # Last 200k chars
-                sampled_text = f"--- DOCUMENT START ---\n{header}\n\n...[content omitted]...\n\n--- DOCUMENT END ---\n{footer}"
-            else:
-                # If the document is small enough, just send the whole thing
-                sampled_text = report_text
-            
-            locate_prompt = LOCATE_FINANCIALS_PROMPT.format(report_text=sampled_text)
-            extracted_text, error = _call_gemini_api(locate_prompt, analysis_id, timeout_seconds=60)
+            # We now pass the ENTIRE document text to the AI, trusting it to find the statements.
+            print(f"[{analysis_id}] 10-K Analysis Step 1: Locating financials in the full document...")
+            locate_prompt = LOCATE_FINANCIALS_PROMPT.format(report_text=report_text)
+            # Use a longer timeout for the location step as it now processes the full document
+            extracted_text, error = _call_gemini_api(locate_prompt, analysis_id, timeout_seconds=120)
 
             if error:
                 return f"Error during financial statement location (Step 1): {error}"
@@ -249,18 +239,21 @@ def analyze_financial_report(report_text, analysis_id, analysis_type='general'):
             print("\n" + "="*80)
             print(f"[{analysis_id}] [DIAGNOSTIC LOG] Start of Extracted Text from Step 1:")
             print("-" * 80)
-            print(extracted_text[:5000] if extracted_text else "No text was extracted.")
+            print(extracted_text[:3000] if extracted_text else "No text was extracted.")
             print("-" * 80)
             print(f"[{analysis_id}] [DIAGNOSTIC LOG] End of Extracted Text. Total length: {len(extracted_text) if extracted_text else 0} chars.")
             print("="*80 + "\n")
             # --- END DIAGNOSTIC LOGGING ---
 
-            if not extracted_text or len(extracted_text) < 100 or "FINANCIAL_STATEMENTS_NOT_FOUND" in extracted_text:
-                print(f"[{analysis_id}] Location failed or returned minimal/no content. Falling back to raw content.")
-                final_analysis_text = report_text[:100000]
-            else:
-                print(f"[{analysis_id}] Successfully extracted financial data for Step 2.")
-                final_analysis_text = extracted_text
+            if not extracted_text or len(extracted_text) < 200 or "FINANCIAL_STATEMENTS_NOT_FOUND" in extracted_text:
+                print(f"[{analysis_id}] Location failed or returned minimal/no content. Unable to perform analysis.")
+                return ("<h3>Analysis Failed: Could Not Locate Financial Statements</h3>"
+                        "<p>The AI was unable to locate the core financial statements within the document. "
+                        "This can happen with non-standard 10-K formats or scanned documents. "
+                        "Please try a different file.</p>")
+            
+            print(f"[{analysis_id}] Successfully extracted financial data for Step 2.")
+            final_analysis_text = extracted_text
 
             # --- STEP 2: ANALYZE THE EXTRACTED FINANCIAL DATA ---
             print(f"[{analysis_id}] 10-K Analysis Step 2: Analyzing extracted financial data...")
@@ -274,6 +267,7 @@ def analyze_financial_report(report_text, analysis_id, analysis_type='general'):
 
         else: # General Analysis
             print(f"[{analysis_id}] Performing General Analysis...")
+            # Truncate for general analysis to keep it quick
             general_prompt = FINANCIAL_ANALYSIS_PROMPT.format(report_text=report_text[:150000])
             analysis_result, error = _call_gemini_api(general_prompt, analysis_id, timeout_seconds=120)
             
@@ -294,7 +288,7 @@ def health_check():
         'status': 'healthy',
         'gemini_model': 'available' if gemini_model else 'unavailable',
         'timestamp': datetime.now().isoformat(),
-        'version': '2.3.0' # Incremented version for smart sampling
+        'version': '3.0.0' # Final version with full text processing
     })
 
 @app.errorhandler(413)
@@ -324,8 +318,8 @@ if __name__ == '__main__':
     else:
         print("✅ Gemini model ready for analysis")
     
-    print("🚀 Starting Financial Analysis Co-Pilot Web App...")
-    print("🧠 Now with smart sampling for large document analysis!")
+    print("🚀 Starting Financial Analysis Co-Pilot Web App v3.0...")
+    print("🤖 Now processing full document context for maximum accuracy!")
     
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.environ.get('PORT', 8080))
