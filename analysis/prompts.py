@@ -92,9 +92,11 @@ You are analyzing a 10-K annual report that contains financial statements. You M
 
 DEBUG MODE - First show what table data you found:
 1. List ALL instances of "=== TABLE" you find in the text
-2. List ALL instances of "---" you find
-3. List ALL numbers with commas (like 245,122 or 64,773)
-4. List ALL instances of these EXACT keywords (case-insensitive):
+2. List ALL instances of "---" you find  
+3. List ALL instances of "[FINANCIAL_DATA_PARAGRAPH]" or "[FINANCIAL_ROW_" you find
+4. List ALL instances of "=== DOCX EXTRACTION DEBUG ===" and report paragraph/table counts
+5. List ALL numbers with commas (like 245,122 or 64,773)
+6. List ALL instances of these EXACT keywords (case-insensitive):
    - "total revenue"
    - "net income" 
    - "cost of revenue"
