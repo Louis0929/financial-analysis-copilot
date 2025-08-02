@@ -44,10 +44,22 @@ Please analyze the following financial report text and provide insights in the f
 - Provide recommendations for areas requiring further investigation
 
 **FORMATTING REQUIREMENTS:**
-- Use clear headings and bullet points for easy readability
+- Use HTML formatting for better presentation:
+  • **Bold headings** using <strong> tags
+  • *Important points* using <em> tags  
+  • Lists using <ul> and <li> tags
+  • Line breaks using <br> tags
 - Provide specific numbers and percentages when available
 - Include your confidence level for each analysis point (High/Medium/Low confidence)
 - End with 2-3 key takeaways for stakeholders
+
+**EXAMPLE OUTPUT FORMAT:**
+<strong>TASK 1: KEY RATIO CALCULATION</strong><br>
+• <strong>Gross Profit Margin:</strong> XX.X% (calculation shown)<br>
+• <strong>Net Profit Margin:</strong> XX.X% (interpretation)<br>
+<br>
+<strong>TASK 2: EXECUTIVE SUMMARY</strong><br>
+<em>Key business developments and trends...</em>
 
 ---
 
@@ -76,39 +88,54 @@ Please provide a clear analysis."""
 
 # Enhanced prompt specifically for 10-K reports
 TEN_K_ANALYSIS_PROMPT = """
-You are analyzing a 10-K annual report. This document contains comprehensive financial data in specific sections.
+You are analyzing a 10-K annual report that contains financial statements. You MUST find and extract financial data from the provided text.
 
-CRITICAL INSTRUCTIONS:
-1. Look for "INCOME STATEMENTS" or "CONSOLIDATED STATEMENTS OF INCOME" section
-2. Look for numerical data in millions (indicated by $ amounts like 245,122 or 64,773)
-3. Extract the most recent year's data (usually rightmost column)
-4. Common 10-K financial line items to find:
-   - Revenue/Total revenue/Net sales
-   - Cost of revenue/Cost of goods sold
-   - Gross profit/Gross margin
-   - Operating income
-   - Net income/Net earnings
-   - Total assets (from Balance Sheet)
-   - Total equity/Shareholders' equity
+CRITICAL SEARCH STRATEGY:
+1. Search the ENTIRE text for these patterns (case-insensitive):
+   - Numbers with commas (e.g., 245,122 or 64,773 or 88,136)
+   - Dollar signs followed by numbers (e.g., $ 245,122)
+   - Keywords: "revenue", "income", "cost", "sales", "profit", "margin"
+   - Table-like structures with | symbols (extracted tables)
+   - Year markers (2024, 2023, 2022)
 
-**STEP 1: DATA EXTRACTION**
-First, identify and extract these specific financial figures from the text:
-- Most recent year Total Revenue: $____
-- Most recent year Cost of Revenue: $____  
-- Most recent year Net Income: $____
-- Most recent year Gross Profit/Margin: $____
+2. Look for these specific financial items in ANY format:
+   - Total revenue/Net sales/Revenue: Look for largest revenue number
+   - Cost of revenue/Cost of sales: Look for cost numbers
+   - Net income/Net earnings: Look for profit numbers
+   - Gross profit/Gross margin: Look for margin calculations
 
-**STEP 2: RATIO CALCULATIONS**
-Using the extracted data, calculate:
-- Gross Profit Margin = (Total Revenue - Cost of Revenue) / Total Revenue × 100%
-- Net Profit Margin = Net Income / Total Revenue × 100%
+**STEP 1: COMPREHENSIVE DATA SEARCH**
+Scan the ENTIRE text and extract ALL financial numbers you find. List them like:
+- Found Revenue figure: $_____ (from year ____)
+- Found Cost figure: $_____ (from year ____)
+- Found Net Income: $_____ (from year ____)
+- Found Gross figures: $_____ (from year ____)
 
-**STEP 3: ANALYSIS**
-Provide interpretation of the calculated ratios and trends.
+**STEP 2: SMART CALCULATIONS**
+Even if you don't find exact "Cost of Revenue", calculate:
+- If you have Revenue and Gross Profit: Cost = Revenue - Gross Profit
+- If you have Revenue and Net Income: Estimate reasonable gross margin
+- Use ANY available numbers to provide meaningful ratios
+
+**STEP 3: FORMATTED ANALYSIS**
+Present results using HTML formatting:
+- **Bold headings** using <strong> tags
+- *Italic emphasis* using <em> tags
+- Lists using <ul> and <li> tags
+- Line breaks using <br> tags
+
+EXAMPLE OUTPUT FORMAT:
+<strong>FINANCIAL DATA EXTRACTED:</strong><br>
+• Total Revenue (2024): $245,122 million<br>
+• Net Income (2024): $88,136 million<br>
+<br>
+<strong>KEY RATIOS CALCULATED:</strong><br>
+• <strong>Net Profit Margin:</strong> 36.0% (Excellent profitability)<br>
+• <strong>Gross Profit Margin:</strong> 69.8% (Strong cost control)<br>
 
 ---
 
 10-K REPORT TEXT TO ANALYZE:
 {report_text}
 
-Please follow the step-by-step approach above."""
+Remember: Even if the text seems incomplete, extract ANY financial numbers you can find and provide analysis based on available data."""

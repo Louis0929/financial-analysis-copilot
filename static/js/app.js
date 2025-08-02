@@ -252,9 +252,9 @@ class FinancialAnalysisApp {
         document.getElementById('resultFileType').textContent = data.file_type;
         document.getElementById('contentLength').textContent = data.content_length.toLocaleString();
         
-        // Format and display analysis text
+        // Format and display analysis text with HTML rendering
         const analysisText = document.getElementById('analysisText');
-        analysisText.textContent = data.analysis_result;
+        analysisText.innerHTML = data.analysis_result;
 
         // Store data for download
         this.currentAnalysis = data;
@@ -268,7 +268,7 @@ class FinancialAnalysisApp {
         const errorSection = document.getElementById('errorSection');
         const errorMessage = document.getElementById('errorMessage');
         
-        errorMessage.textContent = message;
+        errorMessage.innerHTML = message;
         errorSection.style.display = 'block';
         
         // Scroll to error
