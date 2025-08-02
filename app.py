@@ -15,10 +15,11 @@ from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
+import signal
 
 # Import our existing analysis modules
 from analysis.config import gemini_model
-from analysis.prompts import FINANCIAL_ANALYSIS_PROMPT, SIMPLE_ANALYSIS_PROMPT, TEN_K_ANALYSIS_PROMPT
+from analysis.prompts import FINANCIAL_ANALYSIS_PROMPT, TEN_K_ANALYSIS_PROMPT, LOCATE_FINANCIALS_PROMPT
 from analysis.file_reader import read_report
 
 app = Flask(__name__)
@@ -59,170 +60,6 @@ def clean_old_files():
                     os.remove(file_path)
     except Exception as e:
         print(f"Error cleaning old files: {e}")
-
-def optimize_content_for_analysis(content):
-    """
-    Optimize content for financial analysis with special focus on financial statements
-    Specifically targets Balance Sheet, Income Statement, and Cash Flow Statement sections
-    """
-    if len(content) <= 25000:
-        return content
-    
-    import re
-    
-    # Split into paragraphs
-    paragraphs = content.split('\n\n')
-    
-    # CRITICAL: First, find and preserve actual financial statement sections
-    financial_statement_paragraphs = []
-    regular_paragraphs = []
-    
-    # Critical financial statement identifiers - these MUST be included
-    # More precise detection to avoid false positives
-    critical_statements = [
-        'consolidated balance sheets', 'balance sheets',
-        'consolidated statements of income', 'consolidated income statements', 'statements of income',
-        'consolidated statements of cash flows', 'statements of cash flows', 'cash flows statement',
-        'consolidated statements of operations', 'statements of operations',
-        'consolidated statements of comprehensive income', 'statements of comprehensive income',
-        'consolidated statements of stockholders', 'consolidated statements of shareholders',
-        'statements of earnings', 'consolidated statements of earnings',
-        'item 8. financial statements and supplementary data',
-        # Add table headers that indicate actual financial data
-        '(in millions, except per share', '(in thousands, except per share', '(dollars in millions)',
-        'three months ended', 'year ended june 30', 'fiscal year ended',
-        # Microsoft-specific 10K identifiers
-        '=== table', 'table data ===', '[financial_row]', '[dollar_row]', '[number_row]',
-        # Microsoft financial line items
-        'total revenue', 'net income', 'cost of revenue', 'gross margin',
-        'operating income', 'income from operations',
-        # Dollar amounts pattern
-        'million', 'billion', 'except per share', '$'
-    ]
-    
-    # Enhanced approach: Look for financial statement blocks, not just individual paragraphs
-    i = 0
-    while i < len(paragraphs):
-        para = paragraphs[i]
-        if len(para.strip()) < 20:
-            i += 1
-            continue
-            
-        para_lower = para.lower()
-        
-        # Check if this paragraph contains critical financial statement headers
-        found_statement_header = False
-        for statement in critical_statements:
-            if statement in para_lower:
-                # Additional validation: must also contain actual financial numbers
-                financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?', para)
-                if len(financial_numbers) >= 2 or len(para) > 500:  # Either has numbers or is substantial content
-                    found_statement_header = True
-                    break
-        
-        # If we found a financial statement header, grab this and the next several paragraphs as a block
-        if found_statement_header:
-            # Include the header and next 10-15 paragraphs (capture the full table)
-            block_paras = []
-            for j in range(i, min(i + 15, len(paragraphs))):
-                if paragraphs[j].strip():
-                    block_paras.append(paragraphs[j])
-            
-            # Combine into one block
-            financial_block = '\n\n'.join(block_paras)
-            financial_statement_paragraphs.append((i, financial_block))
-            i += 15  # Skip ahead since we captured this block
-        else:
-            # Check for sections with heavy numerical data (likely financial statements)
-            financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?|\d+\.\d+|\d+,\d+', para)
-            if len(financial_numbers) > 5:  # Very number-dense sections
-                financial_statement_paragraphs.append((i, para))
-            else:
-                regular_paragraphs.append((i, para))
-            i += 1
-    
-    # Score regular paragraphs
-    scored_regular_paragraphs = []
-    
-    financial_keywords = [
-        'revenue', 'profit', 'income', 'assets', 'liabilities', 'equity',
-        'cash flow', 'margin', 'ratio', 'debt', 'earnings', 'financial',
-        'management discussion', 'md&a', 'risk', 'outlook', 'performance',
-        'quarter', 'annual', 'fiscal', 'operating', 'net income', 'gross profit',
-        'ebitda', 'eps', 'diluted', 'basic', 'shares', 'dividend', 'acquisition'
-    ]
-    
-    for i, para in regular_paragraphs:
-        score = 0
-        para_lower = para.lower()
-        
-        # Score based on financial numbers
-        financial_numbers = re.findall(r'[\$€£¥][\d,]+(?:\.\d+)?[KMBkmb]?|\d+\.\d+%|\d+%|\d{1,3}(?:,\d{3})*(?:\.\d+)?[KMBkmb]?|\d+\.\d+|\d+,\d+', para)
-        score += len(financial_numbers) * 20
-        
-        # Score based on keywords
-        for keyword in financial_keywords:
-            score += para_lower.count(keyword) * 8
-            
-        # Boost early sections (executive summary, etc.)
-        if i < len(paragraphs) * 0.2:  # First 20% of document
-            score += 25
-            
-        # Boost MD&A and key sections
-        if any(term in para_lower for term in ['management discussion', 'md&a', 'executive summary', 'business overview']):
-            score += 40
-        
-        scored_regular_paragraphs.append((score, i, para))
-    
-    # Sort regular paragraphs by score
-    scored_regular_paragraphs.sort(reverse=True, key=lambda x: x[0])
-    
-    # Build final content: ALWAYS include financial statements + best regular content
-    selected_paragraphs = []
-    total_length = 0
-    max_length = 150000  # Much larger for 10K reports with extensive financial data
-    
-    # 1. FIRST: Add all financial statement paragraphs (high priority)
-    for i, para in financial_statement_paragraphs:
-        if total_length + len(para) <= max_length:
-            selected_paragraphs.append((i, para))
-            total_length += len(para)
-        else:
-            # If financial statement is too long, truncate but still include
-            remaining = max_length - total_length - 100
-            if remaining > 200:  # Only truncate if we have reasonable space
-                truncated = para[:remaining] + "... [financial statement continues]"
-                selected_paragraphs.append((i, truncated))
-                total_length += len(truncated)
-            break
-    
-    # 2. SECOND: Fill remaining space with highest-scored regular content
-    for score, i, para in scored_regular_paragraphs:
-        if total_length + len(para) <= max_length:
-            selected_paragraphs.append((i, para))
-            total_length += len(para)
-        elif score > 60 and total_length < max_length - 300:
-            remaining = max_length - total_length - 100
-            truncated = para[:remaining] + "... [content truncated]"
-            selected_paragraphs.append((i, truncated))
-            break
-    
-    # Sort by original position to maintain document flow
-    selected_paragraphs.sort(key=lambda x: x[0])
-    
-    # Build final content
-    optimized_content = ""
-    for _, para in selected_paragraphs:
-        optimized_content += para + "\n\n"
-    
-    print(f"Content optimization: Found {len(financial_statement_paragraphs)} financial statement sections, {len(selected_paragraphs)} total sections selected")
-    
-    # Debug logging to help identify what statements were found
-    for i, (pos, content) in enumerate(financial_statement_paragraphs):
-        first_line = content.split('\n')[0][:100] if content else ""
-        print(f"  Financial Statement {i+1}: Position {pos}, First line: '{first_line}'")
-    
-    return optimized_content.strip()
 
 @app.route('/')
 def index():
@@ -276,33 +113,20 @@ def upload_file():
         
         print(f"[{analysis_id}] File saved: {original_filename}")
         
-        # Read and optimize file content
+        # Read file content
         file_content = read_report(filepath)
         
-        if file_content is None:
-            # Clean up the uploaded file
+        if file_content is None or not file_content.strip():
             os.remove(filepath)
             return jsonify({
                 'success': False,
-                'error': 'Unable to read the uploaded file. Please check the file format.'
+                'error': 'Unable to read the uploaded file or the file is empty. Please check the file format.'
             }), 400
         
-        # For debugging: check if we should skip optimization
-        if analysis_type == '10k':
-            # For 10K analysis, let's try with raw content first to see what we get
-            print(f"[{analysis_id}] Using RAW content for 10K analysis (debugging)")
-            analysis_content = file_content[:100000]  # Reduced to 100K chars for stability
-            print(f"[{analysis_id}] Raw content sample: {file_content[:500]}...")
-            print(f"[{analysis_id}] Using stable Gemini 1.5 Flash model")
-        else:
-            # Optimize content for faster processing
-            optimized_content = optimize_content_for_analysis(file_content)
-            optimization_ratio = len(optimized_content) / len(file_content)
-            print(f"[{analysis_id}] Content optimized: {len(file_content)} -> {len(optimized_content)} chars ({optimization_ratio:.1%})")
-            analysis_content = optimized_content
-        
-        # Perform analysis with selected content
-        analysis_result = analyze_financial_report(analysis_content, analysis_id, analysis_type)
+        print(f"[{analysis_id}] Read {len(file_content)} characters from file.")
+
+        # Perform analysis with raw content
+        analysis_result = analyze_financial_report(file_content, analysis_id, analysis_type)
         
         # Clean up the uploaded file after analysis
         os.remove(filepath)
@@ -323,11 +147,9 @@ def upload_file():
                 'filename': original_filename,
                 'file_type': file_extension.upper(),
                 'content_length': len(file_content),
-                'analysis_length': len(analysis_content),
                 'processing_time': round(processing_time, 2),
                 'analysis_result': analysis_result,
-                'timestamp': datetime.now().isoformat(),
-                'debug_mode': 'raw_content' if analysis_type == '10k' else 'optimized'
+                'timestamp': datetime.now().isoformat()
             }
         })
         
@@ -344,93 +166,107 @@ def upload_file():
             'error': f'An unexpected error occurred: {str(e)}'
         }), 500
 
+def _call_gemini_api(prompt, analysis_id, timeout_seconds=120):
+    """
+    A helper function to call the Gemini API with a given prompt and timeout.
+    """
+    if gemini_model is None:
+        print(f"[{analysis_id}] Gemini model not initialized")
+        return None, "Gemini model not initialized. Check API key."
+
+    print(f"[{analysis_id}] Calling Gemini API... (prompt length: {len(prompt)} chars)")
+    start_time = time.time()
+
+    generation_config = {
+        'temperature': 0.3,
+        'top_p': 0.9,
+        'top_k': 20,
+        'max_output_tokens': 8000,
+    }
+
+    def timeout_handler(signum, frame):
+        raise TimeoutError(f"API call timed out after {timeout_seconds} seconds")
+
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(timeout_seconds)
+
+    try:
+        response = gemini_model.generate_content(
+            prompt,
+            generation_config=generation_config
+        )
+        signal.alarm(0)  # Cancel the alarm
+        api_time = time.time() - start_time
+        print(f"[{analysis_id}] API response time: {api_time:.2f}s")
+
+        if response.text:
+            return response.text, None
+        else:
+            error_message = "API returned an empty response. The model may be unable to process the request."
+            print(f"[{analysis_id}] {error_message}")
+            return None, error_message
+
+    except TimeoutError as e:
+        signal.alarm(0)
+        print(f"[{analysis_id}] {e}")
+        return None, str(e)
+    except Exception as api_error:
+        signal.alarm(0)
+        print(f"[{analysis_id}] API error: {api_error}")
+        error_str = str(api_error)
+        if "quota" in error_str.lower():
+            return None, "Analysis temporarily unavailable due to API quota limits."
+        return None, f"API error: {error_str[:150]}"
+
+
 def analyze_financial_report(report_text, analysis_id, analysis_type='general'):
     """
-    Analyze financial report using Gemini API with optimizations
-    
-    Args:
-        report_text (str): Content of the financial report
-        analysis_id (str): Unique identifier for this analysis
-        analysis_type (str): Type of analysis ('general' or '10k')
-        
-    Returns:
-        str: Analysis result or None if failed
+    Analyze financial report using a two-step process for 10-K reports.
     """
     try:
-        if gemini_model is None:
-            print(f"[{analysis_id}] Gemini model not initialized")
-            return None
-        
-        # Choose prompt based on analysis type
         if analysis_type == '10k':
-            formatted_prompt = TEN_K_ANALYSIS_PROMPT.format(report_text=report_text)
-            print(f"[{analysis_id}] Using 10-K specialized analysis prompt")
-        else:
-            formatted_prompt = FINANCIAL_ANALYSIS_PROMPT.format(report_text=report_text)
-            print(f"[{analysis_id}] Using general analysis prompt")
-        
-        print(f"[{analysis_id}] Starting analysis... (prompt length: {len(formatted_prompt)} chars)")
-        
-        # Configure generation settings optimized for Cloud Run (5 minute timeout)
-        
-        generation_config = {
-            'temperature': 0.3,  # Lower for focused, professional responses
-            'top_p': 0.9,       # Increased for better quality on Cloud Run
-            'top_k': 20,        # Increased for better generation quality
-            'max_output_tokens': 8000,  # Increased for comprehensive analysis on Cloud Run
-        }
-        
-        start_time = time.time()
-        
-        # Generate analysis with timeout handling (optimized for Heroku 30s limit)
-        import signal
-        
-        def timeout_handler(signum, frame):
-            raise TimeoutError("API call timed out")
-        
-        # Set a 120-second timeout for comprehensive Cloud Run analysis
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(120)
-        
-        try:
-            response = gemini_model.generate_content(
-                formatted_prompt,
-                generation_config=generation_config
-            )
-            
-            # Cancel the alarm
-            signal.alarm(0)
-            
-            api_time = time.time() - start_time
-            print(f"[{analysis_id}] API response time: {api_time:.2f}s")
-            
-            if response.text:
-                print(f"[{analysis_id}] Analysis completed successfully")
-                return response.text
+            # --- STEP 1: LOCATE AND EXTRACT FINANCIAL STATEMENTS ---
+            print(f"[{analysis_id}] 10-K Analysis Step 1: Locating financial statements...")
+            # We use a shorter timeout for this focused extraction task.
+            locate_prompt = LOCATE_FINANCIALS_PROMPT.format(report_text=report_text[:200000]) # Limit input for location step
+            extracted_text, error = _call_gemini_api(locate_prompt, analysis_id, timeout_seconds=60)
+
+            if error:
+                return f"Error during financial statement location (Step 1): {error}"
+            if not extracted_text or len(extracted_text) < 100:
+                # If extraction fails, fall back to analyzing a chunk of the raw text
+                print(f"[{analysis_id}] Financial statement location failed or returned minimal content. Falling back to raw content analysis.")
+                final_analysis_text = report_text[:100000] # Use a sizable chunk of the start
             else:
-                print(f"[{analysis_id}] Empty response from main prompt")
-                return "Analysis generated no content. The document may be too complex or the AI model is experiencing issues. Please try with a smaller document or try again later."
-                
-        except TimeoutError:
-            signal.alarm(0)  # Cancel alarm
-            print(f"[{analysis_id}] API call timed out after 120 seconds")
-            return "Analysis timed out after 2 minutes. The document may be extremely complex. Please try with a smaller file or try again later."
+                print(f"[{analysis_id}] Successfully extracted {len(extracted_text)} characters of financial data.")
+                final_analysis_text = extracted_text
+
+            # --- STEP 2: ANALYZE THE EXTRACTED FINANCIAL DATA ---
+            print(f"[{analysis_id}] 10-K Analysis Step 2: Analyzing extracted financial data...")
+            analysis_prompt = TEN_K_ANALYSIS_PROMPT.format(report_text=final_analysis_text)
+            analysis_result, error = _call_gemini_api(analysis_prompt, analysis_id, timeout_seconds=120)
+
+            if error:
+                return f"Error during financial analysis (Step 2): {error}"
             
-        except Exception as api_error:
-            signal.alarm(0)  # Cancel alarm
-            print(f"[{analysis_id}] API error: {api_error}")
+            # Add a header to clarify the result is from a two-step process
+            return f"<h3>Two-Step 10-K Analysis Result</h3>\n{analysis_result}"
+
+        else: # General Analysis
+            print(f"[{analysis_id}] Performing General Analysis...")
+            # For general analysis, use a single-step approach on a truncated version of the text
+            general_prompt = FINANCIAL_ANALYSIS_PROMPT.format(report_text=report_text[:150000])
+            analysis_result, error = _call_gemini_api(general_prompt, analysis_id, timeout_seconds=120)
             
-            # Handle specific error types
-            if "quota" in str(api_error).lower():
-                return "Analysis temporarily unavailable due to API quota limits. Please try again in a few minutes."
-            elif "timeout" in str(api_error).lower():
-                return "Analysis timed out. Please try with a smaller file or try again later."
-            else:
-                return f"Analysis failed due to API error. Please try again. Error: {str(api_error)[:100]}"
-        
+            if error:
+                return f"Error during general analysis: {error}"
+            
+            return analysis_result
+
     except Exception as e:
-        print(f"[{analysis_id}] Analysis error: {e}")
-        return f"Analysis failed due to system error. Please try again. Error: {str(e)[:100]}"
+        print(f"[{analysis_id}] Analysis error in main function: {e}")
+        return f"Analysis failed due to a system error. Please try again. Error: {str(e)[:100]}"
+
 
 @app.route('/health')
 def health_check():
@@ -439,7 +275,7 @@ def health_check():
         'status': 'healthy',
         'gemini_model': 'available' if gemini_model else 'unavailable',
         'timestamp': datetime.now().isoformat(),
-        'version': '2.0.0'
+        'version': '2.1.0' # Incremented version for new analysis logic
     })
 
 @app.errorhandler(413)
@@ -464,19 +300,16 @@ def internal_error(e):
     }), 500
 
 if __name__ == '__main__':
-    # Check if Gemini model is available
     if gemini_model is None:
         print("⚠️ Warning: Gemini model not initialized. Check your .env configuration.")
     else:
         print("✅ Gemini model ready for analysis")
     
-    # Run the app
     print("🚀 Starting Financial Analysis Co-Pilot Web App...")
     print("📁 Supported file formats: TXT, PDF, DOCX, XLSX, CSV")
-    print("⚡ Optimized for speed with intelligent content processing")
+    print("🔬 New two-step analysis enabled for 10-K reports!")
     
-    # Use environment variables for production deployment
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    port = int(os.environ.get('PORT', 8080))  # Cloud Run uses PORT=8080
+    port = int(os.environ.get('PORT', 8080))
     
-    app.run(debug=debug_mode, host='0.0.0.0', port=port) 
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)

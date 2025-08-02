@@ -1,163 +1,102 @@
 """
-Prompt templates for Financial Statement Analysis Co-Pilot
-Contains the main analysis prompt for processing financial reports
+Prompt templates for Financial Analysis Co-Pilot
+Contains prompts for a two-step 10-K analysis process.
 """
 
-FINANCIAL_ANALYSIS_PROMPT = """
-You are a senior financial analyst with 15+ years of experience analyzing 10-K reports and corporate financial statements. 
-Your task is to perform a comprehensive analysis of the provided financial report text.
+# ======================================================================================
+# STEP 1 PROMPT: Locate the beginning of the financial statements in a 10-K report
+# ======================================================================================
 
-IMPORTANT: Look carefully for financial data in the text, including:
-- Revenue, Total revenue, Net sales
-- Cost of revenue, Cost of goods sold, Cost of sales
-- Net income, Net earnings
-- Gross profit, Gross margin
-- Operating income
-- Total assets, Total equity, Total debt
-- Any numerical data in millions or billions
+LOCATE_FINANCIALS_PROMPT = """
+You are an expert document analyst. Your task is to find the beginning of the core financial statements section in this 10-K report.
+The financial statements almost always begin with one of the following exact phrases (case-insensitive). Find the FIRST occurrence of any of these headers:
 
-Please analyze the following financial report text and provide insights in the following structured format:
+- "consolidated balance sheets"
+- "consolidated statements of financial position"
+- "consolidated statements of income"
+- "consolidated statements of earnings"
+- "consolidated statements of operations"
+- "consolidated statements of comprehensive income"
+- "consolidated statements of cash flows"
+- "report of independent registered public accounting firm"
 
-**TASK 1: KEY RATIO CALCULATION**
-- CAREFULLY search the provided text for financial numbers and calculate key ratios:
-  • Gross Profit Margin = (Revenue - Cost of Revenue) / Revenue × 100%
-  • Net Profit Margin = Net Income / Revenue × 100%
-  • Return on Assets (ROA) if balance sheet data available
-  • Return on Equity (ROE) if equity data available
-  • Debt-to-Equity ratio if applicable
-- Show your calculations with actual numbers from the text
-- If you cannot find specific data, quote the section where you looked
+**Instructions:**
+1.  Read the entire document provided below.
+2.  Find the line that contains the **first occurrence** of any of the headers listed above.
+3.  Return the **ENTIRE text of the document starting from that line**. Do not omit anything.
+4.  If none of these headers are found, return the text "FINANCIAL_STATEMENTS_NOT_FOUND".
 
-**TASK 2: EXECUTIVE SUMMARY**
-- Provide a concise summary of the Management's Discussion and Analysis (MD&A) section
-- Highlight key business developments, strategic initiatives, and management outlook
-- Summarize major financial performance trends mentioned
-- Note any significant events or changes in business operations
+**DOCUMENT TEXT:**
+---
+{report_text}
+---
+"""
 
-**TASK 3: RED FLAG IDENTIFICATION**
-- Identify and list potential risks or "red flags" mentioned in the report:
-  • Financial risks (liquidity, debt levels, declining margins)
-  • Operational risks (market competition, regulatory changes)
-  • Strategic risks (dependency on key customers/suppliers, technology disruption)
-  • Any unusual accounting practices or one-time charges
-- Assess the severity of each identified risk (Low/Medium/High)
-- Provide recommendations for areas requiring further investigation
+# ======================================================================================
+# STEP 2 PROMPT: Analyze the extracted financial statements
+# ======================================================================================
+
+TEN_K_ANALYSIS_PROMPT = """
+You are a senior financial analyst with 20+ years of experience. You have been given the financial statements section of a 10-K report.
+Your task is to conduct a thorough analysis based ONLY on the provided text.
+
+**TASK 1: EXTRACT KEY FINANCIAL DATA**
+- Scour the text for the following figures for the most recent fiscal year.
+- Present the extracted data clearly. If a figure is not found, state that explicitly.
+  - **Total Revenue** (or Net Sales)
+  - **Cost of Revenue** (or Cost of Sales)
+  - **Gross Profit**
+  - **Operating Income**
+  - **Net Income** (or Net Earnings)
+  - **Total Assets**
+  - **Total Liabilities**
+  - **Total Equity**
+  - **Cash and Cash Equivalents**
+  - **Net Cash from Operating Activities**
+
+**TASK 2: CALCULATE KEY FINANCIAL RATIOS**
+- Using the data you extracted in TASK 1, calculate the following ratios.
+- Show your calculations. If data is missing for a ratio, state that it cannot be calculated.
+  - **Gross Profit Margin** = (Gross Profit / Total Revenue) * 100%
+  - **Net Profit Margin** = (Net Income / Total Revenue) * 100%
+  - **Return on Assets (ROA)** = (Net Income / Total Assets) * 100%
+  - **Return on Equity (ROE)** = (Net Income / Total Equity) * 100%
+  - **Debt-to-Equity Ratio** = Total Liabilities / Total Equity
+
+**TASK 3: PROVIDE AN EXECUTIVE-LEVEL ANALYSIS**
+- Based on your findings, provide a concise analysis.
+- What do the ratios tell you about the company's profitability, operational efficiency, and financial health?
+- Highlight any standout numbers or trends (e.g., significant year-over-year changes if data is available).
+- Identify 1-2 potential red flags or areas for further investigation based on the numbers.
 
 **FORMATTING REQUIREMENTS:**
-- Use HTML formatting for better presentation:
-  • **Bold headings** using <strong> tags
-  • *Important points* using <em> tags  
-  • Lists using <ul> and <li> tags
-  • Line breaks using <br> tags
-- Provide specific numbers and percentages when available
-- Include your confidence level for each analysis point (High/Medium/Low confidence)
-- End with 2-3 key takeaways for stakeholders
+- Use HTML formatting: `<strong>`, `<em>`, `<ul>`, `<li>`, `<br>`.
+- Present the analysis in a clear, structured way, following the three tasks above.
+- Be professional and direct in your language.
 
-**EXAMPLE OUTPUT FORMAT:**
-<strong>TASK 1: KEY RATIO CALCULATION</strong><br>
-• <strong>Gross Profit Margin:</strong> XX.X% (calculation shown)<br>
-• <strong>Net Profit Margin:</strong> XX.X% (interpretation)<br>
-<br>
-<strong>TASK 2: EXECUTIVE SUMMARY</strong><br>
-<em>Key business developments and trends...</em>
-
+**FINANCIAL STATEMENTS TEXT TO ANALYZE:**
 ---
-
-FINANCIAL REPORT TEXT TO ANALYZE:
-
 {report_text}
-
 ---
+"""
 
-Please provide your analysis following the structure above:
-""" 
+# ======================================================================================
+# GENERAL PURPOSE PROMPT (For non-10K or simple analysis)
+# ======================================================================================
 
-# Simpler fallback prompt for when the main prompt fails
-SIMPLE_ANALYSIS_PROMPT = """
-Analyze this financial report and provide:
+FINANCIAL_ANALYSIS_PROMPT = """
+You are a senior financial analyst. Please provide a clear and concise analysis of the following financial report text.
 
-1. Key financial metrics and ratios
-2. Main business highlights  
-3. Notable risks or concerns
-4. Overall assessment
+**Key areas to focus on:**
+1.  **Financial Health:** Identify key metrics like revenue, net income, and margins.
+2.  **Profitability:** Assess the company's ability to generate profit.
+3.  **Potential Risks:** Highlight any risks or concerns mentioned in the text.
+4.  **Overall Summary:** Provide a brief executive summary of the report's findings.
 
-Financial data:
-{report_text}
+Use HTML formatting (`<strong>`, `<ul>`, `<li>`, `<br>`) to structure your response.
 
-Please provide a clear analysis."""
-
-# Enhanced prompt specifically for 10-K reports
-TEN_K_ANALYSIS_PROMPT = """
-🔍 DEBUG MODE: You are analyzing RAW CONTENT from a 10-K annual report (no content optimization applied). This text should contain table markers and financial data. You MUST find and extract financial data from the provided text.
-
-STEP 1 - DEBUG: Show what you found in the document:
-1. List ALL instances of "=== TABLE" you find in the text
-2. List ALL instances of "DOCX FILE LOADED:" you find  
-3. List ALL instances of "[FINANCIAL_ROW]:", "[DOLLAR_ROW]:", or "[NUMBER_ROW]:" you find
-4. List ALL numbers with commas (like 245,122 or 64,773)
-5. List ALL lines containing "$" and numbers together
-6. Search for these Microsoft 2024 financial figures:
-   - "245,122" (Total Revenue)
-   - "88,136" (Net Income)
-   - "74,114" (Cost of Revenue)
-7. Look for ANY variation like "245122", "245.122", "245,122,000", "$245,122", "245,122 million" etc.
-8. Show me the FIRST 1000 characters of the text to verify content
-9. Show me ANY lines containing "revenue", "income", "cost", or "profit" (exact matches)
-
-ULTRA-AGGRESSIVE SEARCH STRATEGY:
-1. Search for EXACT financial figures that MUST exist:
-   - Search for "245,122" (Microsoft 2024 total revenue)
-   - Search for "88,136" (Microsoft 2024 net income)  
-   - Search for "74,114" (Microsoft 2024 cost of revenue)
-   - Search for "171,008" (Microsoft 2024 gross margin)
-
-2. Search for these patterns EVERYWHERE in the text:
-   - Any number containing "245" followed by numbers
-   - Any number containing "88" followed by numbers
-   - Any line containing "|" symbols (table data)
-   - The word "revenue" near any large number
-
-**STEP 1: DEBUG FIRST - Show me what you found:**
-A) List EVERY instance of "=== TABLE" in the text
-B) List EVERY number with commas you found (like 245,122)
-C) List EVERY line containing "|" symbols
-D) Search for these EXACT numbers and tell me YES/NO:
-   - "245,122" - YES/NO?
-   - "88,136" - YES/NO?  
-   - "74,114" - YES/NO?
-   - "171,008" - YES/NO?
-
-**STEP 2: AGGRESSIVE FINANCIAL DATA EXTRACTION**
-If you found ANY of the above numbers, extract them immediately:
-- Microsoft Total Revenue (2024): $245,122 million
-- Microsoft Net Income (2024): $88,136 million  
-- Microsoft Cost of Revenue (2024): $74,114 million
-- Microsoft Gross Margin (2024): $171,008 million
-
-**STEP 3: RATIO CALCULATIONS**
-Calculate ratios using the numbers you found:
-- Gross Profit Margin = ($245,122 - $74,114) / $245,122 × 100% = 69.8%
-- Net Profit Margin = $88,136 / $245,122 × 100% = 36.0%
-
-**STEP 4: FORMATTED ANALYSIS**
-Present results using HTML formatting:
-- **Bold headings** using <strong> tags
-- *Italic emphasis* using <em> tags
-- Lists using <ul> and <li> tags
-- Line breaks using <br> tags
-
-EXAMPLE OUTPUT FORMAT:
-<strong>FINANCIAL DATA EXTRACTED:</strong><br>
-• Total Revenue (2024): $245,122 million<br>
-• Net Income (2024): $88,136 million<br>
-<br>
-<strong>KEY RATIOS CALCULATED:</strong><br>
-• <strong>Net Profit Margin:</strong> 36.0% (Excellent profitability)<br>
-• <strong>Gross Profit Margin:</strong> 69.8% (Strong cost control)<br>
-
+**FINANCIAL REPORT TEXT:**
 ---
-
-10-K REPORT TEXT TO ANALYZE:
 {report_text}
-
-Remember: Even if the text seems incomplete, extract ANY financial numbers you can find and provide analysis based on available data."""
+---
+"""
