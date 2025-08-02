@@ -88,7 +88,7 @@ Please provide a clear analysis."""
 
 # Enhanced prompt specifically for 10-K reports
 TEN_K_ANALYSIS_PROMPT = """
-You are analyzing a 10-K annual report that contains financial statements. You MUST find and extract financial data from the provided text.
+🔍 DEBUG MODE: You are analyzing RAW CONTENT from a 10-K annual report (no content optimization applied). This text should contain table markers and financial data. You MUST find and extract financial data from the provided text.
 
 STEP 1 - DEBUG: Show what you found in the document:
 1. List ALL instances of "=== TABLE" you find in the text
@@ -101,6 +101,8 @@ STEP 1 - DEBUG: Show what you found in the document:
    - "88,136" (Net Income)
    - "74,114" (Cost of Revenue)
 7. Look for ANY variation like "245122", "245.122", "245,122,000", "$245,122", "245,122 million" etc.
+8. Show me the FIRST 1000 characters of the text to verify content
+9. Show me ANY lines containing "revenue", "income", "cost", or "profit" (exact matches)
 
 ULTRA-AGGRESSIVE SEARCH STRATEGY:
 1. Search for EXACT financial figures that MUST exist:

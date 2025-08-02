@@ -287,14 +287,21 @@ def upload_file():
                 'error': 'Unable to read the uploaded file. Please check the file format.'
             }), 400
         
-        # Optimize content for faster processing
-        optimized_content = optimize_content_for_analysis(file_content)
-        optimization_ratio = len(optimized_content) / len(file_content)
+        # For debugging: check if we should skip optimization
+        if analysis_type == '10k':
+            # For 10K analysis, let's try with raw content first to see what we get
+            print(f"[{analysis_id}] Using RAW content for 10K analysis (debugging)")
+            analysis_content = file_content[:200000]  # Take first 200K chars raw
+            print(f"[{analysis_id}] Raw content sample: {file_content[:500]}...")
+        else:
+            # Optimize content for faster processing
+            optimized_content = optimize_content_for_analysis(file_content)
+            optimization_ratio = len(optimized_content) / len(file_content)
+            print(f"[{analysis_id}] Content optimized: {len(file_content)} -> {len(optimized_content)} chars ({optimization_ratio:.1%})")
+            analysis_content = optimized_content
         
-        print(f"[{analysis_id}] Content optimized: {len(file_content)} -> {len(optimized_content)} chars ({optimization_ratio:.1%})")
-        
-        # Perform analysis with optimized content
-        analysis_result = analyze_financial_report(optimized_content, analysis_id, analysis_type)
+        # Perform analysis with selected content
+        analysis_result = analyze_financial_report(analysis_content, analysis_id, analysis_type)
         
         # Clean up the uploaded file after analysis
         os.remove(filepath)
@@ -315,10 +322,11 @@ def upload_file():
                 'filename': original_filename,
                 'file_type': file_extension.upper(),
                 'content_length': len(file_content),
-                'optimized_length': len(optimized_content),
+                'analysis_length': len(analysis_content),
                 'processing_time': round(processing_time, 2),
                 'analysis_result': analysis_result,
-                'timestamp': datetime.now().isoformat()
+                'timestamp': datetime.now().isoformat(),
+                'debug_mode': 'raw_content' if analysis_type == '10k' else 'optimized'
             }
         })
         
